@@ -82,9 +82,9 @@ export function ChatPanel(props: ChatPanelProps) {
 
   if (messages.length === 0 && !awaiting) {
     return (
-      <div className="flex h-full flex-col items-center justify-center px-5 pb-14">
+      <div className="flex h-full flex-col items-center justify-center px-4 pb-10 sm:px-5 sm:pb-14">
         <div className="w-full max-w-2xl">
-          <h1 className="text-center text-[30px] font-semibold leading-tight tracking-tight">
+          <h1 className="text-center text-[24px] font-semibold leading-tight tracking-tight sm:text-[30px]">
             What do you want to check?
           </h1>
           <p className="mx-auto mt-2.5 max-w-md text-center text-[13.5px] leading-relaxed text-muted-foreground">
@@ -113,7 +113,7 @@ export function ChatPanel(props: ChatPanelProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ChatContainerRoot className="scroll-quiet min-h-0 flex-1">
-        <ChatContainerContent className="mx-auto w-full max-w-2xl gap-7 px-5 py-8">
+        <ChatContainerContent className="mx-auto w-full max-w-2xl gap-7 px-4 py-6 sm:px-5 sm:py-8">
           {messages.map((message) => (
             <MessageRow key={message.id} message={message} busy={props.busy} model={props.model} />
           ))}
@@ -141,7 +141,7 @@ export function ChatPanel(props: ChatPanelProps) {
         </ChatContainerContent>
       </ChatContainerRoot>
 
-      <div className="px-5 pb-4 pt-1">{composer}</div>
+      <div className="px-4 pb-4 pt-1 sm:px-5">{composer}</div>
     </div>
   );
 }
@@ -261,7 +261,9 @@ function MessageRow({
               isError && "border border-destructive/40 bg-destructive/10 text-foreground backdrop-blur",
             )}
           >
-            {message.text ? <span className="whitespace-pre-wrap">{message.text}</span> : null}
+            {message.text ? (
+              <span className="whitespace-pre-wrap">{linkify(message.text)}</span>
+            ) : null}
 
             {message.steps.length > 0 ? (
               <div
@@ -374,4 +376,25 @@ function AssistantMeta({ message, model }: { message: ChatMessage; model: string
 
 function formatTime(at: number): string {
   return new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
+
+/** Turn bare URLs in a message into links so a source can be opened directly. */
+function linkify(text: string) {
+  return text.split(URL_PATTERN).map((part, index) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={index}
+        href={part}
+        target="_blank"
+        rel="noreferrer"
+        className="break-all underline underline-offset-2 hover:opacity-80"
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={index}>{part}</span>
+    ),
+  );
 }

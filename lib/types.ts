@@ -202,3 +202,60 @@ export function filterTranscriptBySpeaker(
     text: words.filter(keep).map((word) => word.text).join(" "),
   };
 }
+
+/* ------------------------------------------------------------------------- *
+ * Live capture
+ *
+ * Types for the microphone → Scribe → GPTZero loop in the Live tab. Separate
+ * from the transcript types above: a live chunk is raw text with no word
+ * timings or speakers, scored on its own before it is ever a Transcript.
+ * ------------------------------------------------------------------------- */
+
+export type Verdict = "ai" | "human" | "mixed";
+
+/** Document-level chance for each class (sums ~1). */
+export type ClassProbs = {
+  ai: number;
+  human: number;
+  mixed: number;
+};
+
+/** One sentence as GPTZero scored it. */
+export type LiveScoredSentence = {
+  sentence: string;
+  /** 0..1, how much this sentence looks like AI text. */
+  ai: number;
+};
+
+/** The result of scoring one chunk of live transcript. */
+export type Detection = {
+  id: string;
+  /** Monotonic index of the chunk within the session. */
+  index: number;
+  verdict: Verdict;
+  /** Document-level probability of the predicted class, 0..1. */
+  probability: number;
+  /** Full class split from GPTZero. */
+  probs: ClassProbs;
+  confidence: "high" | "medium" | "low";
+  /** `concatenated` or `polished` when the verdict is `mixed`. */
+  subclass?: string;
+  sentences: LiveScoredSentence[];
+  words: number;
+  /**
+   * True when the chunk was below the 70-word floor. A thin chunk can miss AI
+   * text, but it never invents it — so a thin `ai` verdict is trustworthy and
+   * a thin `human` verdict is not.
+   */
+  thin: boolean;
+  text: string;
+  at: number;
+};
+
+export type ChunkReason = "full" | "pause" | "flush";
+
+export type PendingChunk = {
+  text: string;
+  words: number;
+  reason: ChunkReason;
+};

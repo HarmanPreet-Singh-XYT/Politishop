@@ -80,7 +80,7 @@ export function AudioToolsView({
   onTranscribeOptionsChange: (options: TranscribeOptions) => void;
 }) {
   return (
-    <div className="scroll-quiet h-full overflow-y-auto px-5 py-6">
+    <div className="scroll-quiet h-full overflow-y-auto px-4 py-5 sm:px-5 sm:py-6">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
         <div>
           <h2 className="text-[15px] font-semibold tracking-tight">Audio tools</h2>

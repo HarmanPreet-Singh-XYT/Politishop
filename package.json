@@ -14,6 +14,7 @@
   "dependencies": {
     "@browserbasehq/stagehand": "^4.0.0",
     "@designcodeio/threeui": "^1.2.0",
+    "@rive-app/react-webgl2": "^4.34.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "dotenv": "^16.4.5",

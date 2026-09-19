@@ -87,9 +87,9 @@ export function ProjectsView({
   }
 
   return (
-    <div className="scroll-quiet h-full overflow-y-auto px-5 py-5">
+      <div className="scroll-quiet h-full overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
       <div className="mx-auto w-full max-w-3xl">
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 items-center gap-2">
             {onBack ? (
               <Button
@@ -241,7 +241,7 @@ function ProjectWorkspace({
   }
 
   return (
-    <div className="scroll-quiet h-full overflow-y-auto px-5 py-5">
+      <div className="scroll-quiet h-full overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
       <div className="mx-auto w-full max-w-5xl">
         <Button
           variant="ghost"
@@ -253,7 +253,7 @@ function ProjectWorkspace({
           All projects
         </Button>
 
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           {editing ? (
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <input

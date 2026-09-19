@@ -24,3 +24,20 @@ cn theme. Confidence: 0.55
 - Wants AI-driven features to offer both automatic and manual control: the system should pick a sensible default on its own, but the user must be able to inspect and override it (e.g. auto-select the main speaker, plus a manual picker). Confidence: 0.5
 - Wants the app to actually exploit the platform/API capabilities it has access to ("use features where we can") and to surface data it already fetches rather than leaving it unused. Confidence: 0.55
 - Wants primary/core functionality surfaced inline in the main view, while secondary or tangential features (extra tools, tuning knobs) go behind a separate tab/button rather than cluttering the main surface. Confidence: 0.55
+- Prefers a split two-pane layout for capture/analysis screens: the media/camera feed (in portrait) on the left, and the derived output (live transcription, status, analytics) on the right. Confidence: 0.55
+- Wants capture hardware lifecycle-bound to the primary start/stop control — the camera turns on when recording starts and off when it stops, with all controls linked together, rather than exposing the camera as an independent always-on toggle. Confidence: 0.6
+- Expects edge cases to be explicitly handled in a feature (device/permission failures, start/stop wiring, etc.), not just the happy path. Confidence: 0.5
+- Prefers a small, low-visual-weight start/record button rather than an oversized prominent one. Confidence: 0.55
+- Wants settings/device pickers behind a dedicated settings (gear) button that opens a popup dialog, keeping the main panel itself clean rather than exposing inline selects. Confidence: 0.6
+- Prefers a genuinely tall portrait camera frame (aspect closer to 9:16) rather than a squarer portrait. Confidence: 0.5
+- Wants primary visual/media elements to expand to fill the available container space (grow to the column, no fixed max-width/size cap) rather than being constrained to a fixed small size. Confidence: 0.6
+- Expects the whole interface to be mobile responsive — every page/view, not just the one being worked on — and treats responsiveness as a baseline requirement across the app rather than an optional follow-up. Confidence: 0.6
+- Wants the primary/hero feature to be the default landing view (e.g. Live as the landing tab) rather than a secondary section. Confidence: 0.5
+- On mobile, wants the media/camera pane to fill the entire screen and the other content (analytics, transcript) toggleable via an explicit switch button, rather than compressing the multi-pane split into a cramped side-by-side at phone widths. Confidence: 0.6
+- Wants live speech rendered as subtitle-style captions overlaid on the bottom of the camera/video feed (YouTube-caption style: translucent pill, centered text, line-clamped), rather than only in a separate transcript panel. Confidence: 0.5
+- Anchors UI/UX requests to familiar product patterns ("like how YouTube has subtitles") as the reference for how a feature should look and behave. Confidence: 0.5
+- Wants key controls to visibly react to live session state — e.g. the record/play button morphing into an animated orb that responds to microphone level and transcription progress — rather than staying a static icon. Confidence: 0.5
+- When referencing a specific existing component (by library/site name), expects that exact official component to be used — matching its real look and motion — and will push back on a hand-rolled approximation, even accepting its added runtime/dependency weight. Confidence: 0.6
+- Verifies authenticity against the source/reference (e.g. checking the library's website) and calls out mismatches in color/animation rather than accepting a close-enough custom build. Confidence: 0.55
+- Reaches for PostgreSQL as the database when adding a persistence layer to a project, rather than lighter/embedded or hosted-BaaS alternatives. Confidence: 0.5
+- Wants sources/links the agent surfaces in chat to be directly actionable — clickable (auto-linked bare URLs, opening in a new tab) rather than rendered as plain, unclickable text. Confidence: 0.5

@@ -16,12 +16,21 @@ import { useAgentChat } from "@/components/useAgentChat";
 import { cn } from "@/lib/utils";
 
 const SPRING = { type: "spring" as const, stiffness: 150, damping: 24 };
+const MOBILE_QUERY = "(max-width: 767px)";
 
 export default function Page() {
   const chat = useAgentChat();
-  const [tab, setTab] = useState("existing");
+  const [tab, setTab] = useState("live");
   const [existingView, setExistingView] = useState<"chat" | "transcripts">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // The history rail is an overlay on phones, so it must start closed there —
+  // open it by default only when there is room to dock it beside the chat.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches) {
+      setSidebarOpen(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (chat.createdProject) setTab("projects");
@@ -32,8 +41,8 @@ export default function Page() {
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="flex h-dvh flex-col gap-0!">
-      <header className="glass-strong grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-border/70 px-3">
-        <div className="flex items-center gap-2">
+      <header className="glass-strong shrink-0 border-b border-border/70 px-3 pt-2 sm:grid sm:h-12 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3 sm:pt-0">
+        <div className="flex min-w-0 items-center gap-2">
           {tab === "existing" && !sidebarOpen ? (
             <Button
               variant="ghost"
@@ -47,30 +56,35 @@ export default function Page() {
           ) : null}
 
           <span
-            className="grid size-6 place-items-center rounded-md bg-primary text-primary-foreground"
+            className="grid size-6 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground"
             aria-hidden="true"
           >
             <Sparkles className="size-3.5" />
           </span>
-          <span className="text-sm font-medium tracking-tight">Speech Ingest</span>
+          <span className="truncate text-sm font-medium tracking-tight">Speech Ingest</span>
         </div>
 
-        <TabsList className="justify-self-center">
-          <TabsTrigger value="existing" className="px-3">
-            Existing Content
-          </TabsTrigger>
-          <TabsTrigger value="projects" className="px-3">
-            Projects
-          </TabsTrigger>
-          <TabsTrigger value="live" className="px-3">
-            Live
-          </TabsTrigger>
-          <TabsTrigger value="audio" className="px-3">
-            Audio tools
-          </TabsTrigger>
-        </TabsList>
+        {/* Horizontal scroll on phones, centred in the grid cell from sm up. */}
+        <div className="scroll-quiet -mx-1 mt-1 flex overflow-x-auto px-1 pb-2 sm:mx-0 sm:mt-0 sm:justify-center sm:overflow-visible sm:pb-0">
+          <TabsList>
+            <TabsTrigger value="live" className="px-3">
+              Live
+            </TabsTrigger>
+            <TabsTrigger value="existing" className="px-3">
+              <span className="hidden sm:inline">Existing Content</span>
+              <span className="sm:hidden">Existing</span>
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="px-3">
+              Projects
+            </TabsTrigger>
+            <TabsTrigger value="audio" className="px-3">
+              <span className="hidden sm:inline">Audio tools</span>
+              <span className="sm:hidden">Audio</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        <div className="flex items-center justify-end gap-4 text-xs text-muted-foreground">
+        <div className="hidden items-center justify-end gap-4 text-xs text-muted-foreground sm:flex">
           {chat.sessionId ? (
             <a
               className="underline-offset-4 hover:text-foreground hover:underline"
@@ -87,8 +101,24 @@ export default function Page() {
       <TabsContent
         forceMount
         value="existing"
-        className="flex min-h-0 flex-1 flex-row data-[state=inactive]:hidden"
+        className="relative flex min-h-0 flex-1 flex-row data-[state=inactive]:hidden"
       >
+        {/* Phone overlay scrim: tapping it puts the rail away. */}
+        <AnimatePresence>
+          {sidebarOpen ? (
+            <motion.button
+              key="scrim"
+              type="button"
+              aria-label="Hide history"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 z-30 bg-black/50 md:hidden"
+            />
+          ) : null}
+        </AnimatePresence>
+
         <AnimatePresence initial={false}>
           {sidebarOpen ? (
             <motion.aside
@@ -97,7 +127,7 @@ export default function Page() {
               animate={{ width: 264, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={SPRING}
-              className="min-h-0 shrink-0 overflow-hidden border-r border-border/60"
+              className="min-h-0 shrink-0 overflow-hidden border-r border-border/60 max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:bg-sidebar"
             >
               <ChatSidebar
                 activeId={chat.chatId}
@@ -107,6 +137,7 @@ export default function Page() {
                 onSelect={(session) => {
                   chat.restore(session);
                   setExistingView("chat");
+                  if (window.matchMedia(MOBILE_QUERY).matches) setSidebarOpen(false);
                 }}
                 onShowTranscripts={() => setExistingView("transcripts")}
               />
@@ -123,7 +154,7 @@ export default function Page() {
             layout
             transition={SPRING}
             className={cn(
-              "flex min-h-0 flex-1 gap-5 p-5",
+              "flex min-h-0 flex-1 gap-5 p-4 sm:p-5",
               split ? "flex-col lg:flex-row" : "justify-center",
             )}
           >
