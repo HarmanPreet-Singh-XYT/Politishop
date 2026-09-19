@@ -1,0 +1,26 @@
+# Taste
+- Comfortable pasting API keys/credentials directly into the chat and having the agent wire them into config (e.g. `.env`) rather than managing secrets on their own. Confidence: 0.6
+- Aligns stack choices with hackathon sponsor/track technologies (chose the OpenAI SDK specifically because OpenAI was a Hack the North sponsor and in the track list). Confidence: 0.5
+- Prefers a conversational chat interface for user-facing products over plain CLI or bare HTTP surfaces. Confidence: 0.55
+- Wants polished, animated UI with smooth layout transitions (chat slides to a side rail and a results/analytics view animates in) rather than static pages. Confidence: 0.5
+- Prefers shadcn/ui as the overall component base (Tailwind + shadcn) for web UI. Confidence: 0.85
+- Prefers prompt-kit for chat-interface primitives (chat container, message, prompt input, loader, suggestions) on top of shadcn. Confidence: 0.85
+- Wants custom UI components built on top of the component libraries rather than using stock/prebuilt blocks — write the app-specific components themselves. Confidence: 0.8
+- Rejects generic "AI-made" default styling; when given a reference design/screenshot, expects the UI to be restyled to match it closely rather than shipping the framework/library default look. Confidence: 0.8
+- Prefers a dark theme for the app (after an initial light pass, explicitly asked to "make it dark theme" with a tinted deep palette and translucent glass surfaces that let the animated background read through). Confidence: 0.6
+- Prefers top-level horizontal navigation tabs in the header over a sidebar layout for multi-section apps. Confidence: 0.55
+- Wants scope discipline: when a feature is out of scope, build only the structural separation (e.g. distinct tabs/sections) with an honest placeholder, rather than implementing the unrequested functionality. Confidence: 0.5
+- Prefers full-bleed, unboxed layouts (content and composer float directly on the background, bolt.new-style) and dislikes wrapping the chat surface in bordered/glass container cards. Confidence: 0.6
+- Dislikes purple/violet in the UI palette — wants accent and chrome colors shifted off purple (chose teal/steel) while reserving green/amber/red for state only. Confidence: 0.7
+cn theme. Confidence: 0.55
+- Prefers top-level horizontal navigation tabs in the header over a sidebar layout for multi-section apps. Confidence: 0.55
+- Wants scope discipline: when a feature is out of scope, build only the structural separation (e.g. distinct tabs/sections) with an honest placeholder, rather than implementing the unrequested functionality. Confidence: 0.5
+- Wants secondary/utility surfaces (chat history, saved transcripts) out of the primary composer and living in a dedicated, collapsible panel that can be dismissed entirely — keep the main interaction surface (input + send) uncluttered. Confidence: 0.55
+- Expects the agent to proactively review code (including prompts, schemas, and wiring) holistically, find gaps, and fix them directly rather than just reporting issues. Confidence: 0.5
+- Wants the composer input to read as one flat, uniform colour — no visible seam or differing background between the textarea and the surrounding input chrome. Confidence: 0.6
+- Does not want technical knobs like model selection exposed in the user-facing UI; asked to remove the model picker from the composer entirely. Confidence: 0.6
+- Wants a composer tool/mode menu that offers a non-AI direct path (e.g. paste a URL to transcribe as-is) alongside the AI path, rather than routing every input through the agent. Confidence: 0.6
+- Runs multiple agents concurrently on the same repo and expects each to detect and work around the others' in-flight changes rather than clobbering them, then verify the merged tree (typecheck) rather than reporting transient failures that aren't theirs. Confidence: 0.55
+- Wants AI-driven features to offer both automatic and manual control: the system should pick a sensible default on its own, but the user must be able to inspect and override it (e.g. auto-select the main speaker, plus a manual picker). Confidence: 0.5
+- Wants the app to actually exploit the platform/API capabilities it has access to ("use features where we can") and to surface data it already fetches rather than leaving it unused. Confidence: 0.55
+- Wants primary/core functionality surfaced inline in the main view, while secondary or tangential features (extra tools, tuning knobs) go behind a separate tab/button rather than cluttering the main surface. Confidence: 0.55
