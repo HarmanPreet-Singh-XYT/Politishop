@@ -152,6 +152,7 @@ function VoiceIsolator() {
       <input
         type="file"
         accept="audio/*,video/*"
+        aria-label="Audio or video file to isolate"
         disabled={busy}
         onChange={(event) => {
           setFile(event.target.files?.[0] ?? null);
@@ -280,6 +281,7 @@ function DubTool({ video }: { video: VideoProposal | null }) {
           disabled={running}
           onChange={(event) => setSourceUrl(event.target.value)}
           placeholder="https://www.youtube.com/watch?v=…"
+          aria-label="Video URL to dub"
           className={inputClass}
         />
         <select
@@ -368,6 +370,7 @@ function SoundEffectTool() {
             if (event.key === "Enter") void run();
           }}
           placeholder="Spacious braam for a high-impact trailer moment"
+          aria-label="Sound effect description"
           className={inputClass}
         />
       </div>
@@ -448,6 +451,7 @@ function TranscriptionDefaults({
             });
           }}
           placeholder="Keyterms, comma-separated (names, jargon)"
+          aria-label="Keyterms, comma-separated"
           className={inputClass}
         />
       </div>

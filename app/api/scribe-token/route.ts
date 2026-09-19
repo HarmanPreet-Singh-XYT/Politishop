@@ -1,6 +1,7 @@
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 /**
  * Mints a single-use token so the browser can open the Scribe realtime

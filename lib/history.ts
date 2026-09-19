@@ -1,5 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { jsonb, query } from "./db";
 import type {
   ChatMessage,
   Transcript,
@@ -27,9 +26,19 @@ export interface ChatSession extends ChatSummary {
 
 const ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 
-function chatsDir(): string {
-  return path.resolve(process.cwd(), "out", "chats");
-}
+type ChatRow = {
+  id: string;
+  title: string;
+  created_at: Date;
+  updated_at: Date;
+  message_count: number;
+  messages: ChatMessage[];
+  proposal: VideoProposal | null;
+  browser_session_id: string | null;
+  transcript: Transcript | null;
+  stats: TranscriptStats | null;
+  primary_speaker: string | null;
+};
 
 function titleFrom(messages: ChatMessage[]): string {
   const firstUser = messages.find((message) => message.role === "user" && message.text.trim());
@@ -38,47 +47,42 @@ function titleFrom(messages: ChatMessage[]): string {
 }
 
 export async function listChats(): Promise<ChatSummary[]> {
-  let files: string[];
-  try {
-    files = await readdir(chatsDir());
-  } catch {
-    return [];
-  }
-
-  const summaries = await Promise.all(
-    files
-      .filter((file) => file.endsWith(".json"))
-      .map(async (file) => {
-        try {
-          const session = JSON.parse(
-            await readFile(path.join(chatsDir(), file), "utf8"),
-          ) as ChatSession;
-          return {
-            id: session.id,
-            title: session.title,
-            updatedAt: session.updatedAt,
-            messageCount: session.messages?.length ?? 0,
-          };
-        } catch {
-          return null;
-        }
-      }),
+  const { rows } = await query<
+    Pick<ChatRow, "id" | "title" | "updated_at" | "message_count">
+  >(
+    `SELECT id, title, updated_at, message_count
+       FROM chats
+      ORDER BY updated_at DESC`,
   );
 
-  return summaries
-    .filter((summary): summary is ChatSummary => summary !== null)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    updatedAt: row.updated_at.toISOString(),
+    messageCount: row.message_count,
+  }));
 }
 
 export async function getChat(id: string): Promise<ChatSession | null> {
   if (!ID_PATTERN.test(id)) return null;
-  try {
-    return JSON.parse(
-      await readFile(path.join(chatsDir(), `${id}.json`), "utf8"),
-    ) as ChatSession;
-  } catch {
-    return null;
-  }
+
+  const { rows } = await query<ChatRow>(`SELECT * FROM chats WHERE id = $1`, [id]);
+  const row = rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    title: row.title,
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+    messageCount: row.message_count,
+    messages: row.messages ?? [],
+    proposal: row.proposal,
+    browserSessionId: row.browser_session_id,
+    transcript: row.transcript,
+    stats: row.stats,
+    primarySpeaker: row.primary_speaker,
+  };
 }
 
 export async function saveChat(input: {
@@ -92,33 +96,43 @@ export async function saveChat(input: {
 }): Promise<ChatSummary> {
   if (!ID_PATTERN.test(input.id)) throw new Error("Invalid chat id.");
 
-  const existing = await getChat(input.id);
-  const now = new Date().toISOString();
-  const session: ChatSession = {
-    id: input.id,
-    title: titleFrom(input.messages),
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-    messageCount: input.messages.length,
-    messages: input.messages,
-    proposal: input.proposal,
-    browserSessionId: input.browserSessionId,
-    transcript: input.transcript,
-    stats: input.stats,
-    primarySpeaker: input.primarySpeaker ?? null,
-  };
-
-  const directory = chatsDir();
-  await mkdir(directory, { recursive: true });
-  await writeFile(
-    path.join(directory, `${input.id}.json`),
-    JSON.stringify(session, null, 2),
+  const { rows } = await query<
+    Pick<ChatRow, "id" | "title" | "updated_at" | "message_count">
+  >(
+    `INSERT INTO chats (
+       id, title, message_count, messages, proposal,
+       browser_session_id, transcript, stats, primary_speaker
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (id) DO UPDATE SET
+       title              = EXCLUDED.title,
+       updated_at         = now(),
+       message_count      = EXCLUDED.message_count,
+       messages           = EXCLUDED.messages,
+       proposal           = EXCLUDED.proposal,
+       browser_session_id = EXCLUDED.browser_session_id,
+       transcript         = EXCLUDED.transcript,
+       stats              = EXCLUDED.stats,
+       primary_speaker    = EXCLUDED.primary_speaker
+     RETURNING id, title, updated_at, message_count`,
+    [
+      input.id,
+      titleFrom(input.messages),
+      input.messages.length,
+      jsonb(input.messages),
+      jsonb(input.proposal),
+      input.browserSessionId,
+      jsonb(input.transcript),
+      jsonb(input.stats),
+      input.primarySpeaker ?? null,
+    ],
   );
 
+  const row = rows[0];
   return {
-    id: session.id,
-    title: session.title,
-    updatedAt: session.updatedAt,
-    messageCount: session.messageCount,
+    id: row.id,
+    title: row.title,
+    updatedAt: row.updated_at.toISOString(),
+    messageCount: row.message_count,
   };
 }

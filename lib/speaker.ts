@@ -10,6 +10,7 @@ export class Speaker {
   private audio: HTMLAudioElement | null = null;
   private objectUrl: string | null = null;
   private generation = 0;
+  private finish: (() => void) | null = null;
 
   constructor(
     private onSpeakingChange: (speaking: boolean) => void,
@@ -66,8 +67,12 @@ export class Speaker {
     try {
       await audio.play();
       await new Promise<void>((resolve) => {
-        audio.onended = () => resolve();
-        audio.onerror = () => resolve();
+        // Keep the resolver so stop() can settle this promise if it tears the
+        // audio down mid-playback. Without that, the caller's finally — which
+        // reopens the microphone — would never run.
+        this.finish = resolve;
+        audio.onended = () => this.settle();
+        audio.onerror = () => this.settle();
       });
     } catch (err) {
       this.onError?.(
@@ -87,7 +92,15 @@ export class Speaker {
       this.audio.onended = null;
       this.audio.onerror = null;
     }
+    this.settle();
     this.cleanup();
+  }
+
+  /** Resolve a pending `speak()` promise, if one is waiting. */
+  private settle() {
+    const finish = this.finish;
+    this.finish = null;
+    finish?.();
   }
 
   private cleanup() {

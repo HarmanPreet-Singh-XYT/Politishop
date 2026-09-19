@@ -7,11 +7,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const project = await getProject(id);
-  if (!project) {
-    return Response.json({ error: "Project not found." }, { status: 404 });
+  try {
+    const project = await getProject(id);
+    if (!project) {
+      return Response.json({ error: "Project not found." }, { status: 404 });
+    }
+    return Response.json(project);
+  } catch {
+    return Response.json({ error: "Could not load that project." }, { status: 500 });
   }
-  return Response.json(project);
 }
 
 export async function PATCH(
@@ -39,9 +43,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const removed = await deleteProject(id);
-  if (!removed) {
-    return Response.json({ error: "Project not found." }, { status: 404 });
+  try {
+    const removed = await deleteProject(id);
+    if (!removed) {
+      return Response.json({ error: "Project not found." }, { status: 404 });
+    }
+    return Response.json({ ok: true });
+  } catch {
+    return Response.json({ error: "Could not delete that project." }, { status: 500 });
   }
-  return Response.json({ ok: true });
 }

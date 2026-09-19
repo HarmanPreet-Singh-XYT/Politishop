@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowUp, Check, Copy, Sparkles, ThumbsDown, ThumbsUp, User } from "lucide-react";
+import { ArrowUp, Check, Copy, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import type { Components } from "react-markdown";
 import { Button } from "@/components/ui/button";
 import {
   ChatContainerContent,
@@ -10,13 +11,21 @@ import {
   ChatContainerScrollAnchor,
 } from "@/components/ui/chat-container";
 import { Loader } from "@/components/ui/loader";
-import { Message } from "@/components/ui/message";
+import {
+  Message,
+  MessageAction,
+  MessageActions,
+  MessageAvatar,
+  MessageContent,
+} from "@/components/ui/message";
 import {
   PromptInput,
+  PromptInputAction,
   PromptInputActions,
   PromptInputTextarea,
 } from "@/components/ui/prompt-input";
 import { PromptSuggestion } from "@/components/ui/prompt-suggestion";
+import { ScrollButton } from "@/components/ui/scroll-button";
 import { ToolMenu, type ComposerMode } from "@/components/ToolMenu";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, VideoProposal as VideoProposalType } from "@/lib/types";
@@ -36,6 +45,20 @@ const STATUS_LABEL: Record<Status, string> = {
   ready: "Transcript ready",
   error: "Needs attention",
 };
+
+/** Render links in assistant markdown so a source opens in a new tab. */
+const MARKDOWN_COMPONENTS: Components = {
+  a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+};
+
+/** Keep markdown compact inside a chat bubble (no typography plugin is installed). */
+const MARKDOWN_CLASSES =
+  "[&_p]:my-0 [&_p+p]:mt-2 [&_a]:underline [&_a]:underline-offset-2 [&_strong]:font-semibold " +
+  "[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 " +
+  "[&_h1]:mt-3 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:text-[15px] [&_h2]:font-semibold " +
+  "[&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-semibold [&_blockquote]:border-l-2 [&_blockquote]:border-border " +
+  "[&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_hr]:my-3 [&_hr]:border-border " +
+  "[&_table]:w-full [&_th]:text-left [&_th]:font-semibold [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[12.5px]";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -97,6 +120,7 @@ export function ChatPanel(props: ChatPanelProps) {
             {SUGGESTIONS.map((suggestion) => (
               <PromptSuggestion
                 key={suggestion}
+                variant="outline"
                 size="sm"
                 className="h-8 rounded-full border-border/70 px-3 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => onSend(suggestion)}
@@ -120,12 +144,12 @@ export function ChatPanel(props: ChatPanelProps) {
 
           {awaiting ? (
             <Message className="flex-row">
-              <div
-                className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"
-                aria-hidden="true"
-              >
-                <Sparkles className="size-4" />
-              </div>
+              <MessageAvatar
+                src=""
+                alt="Assistant"
+                fallback="AI"
+                className="size-8 [&_[data-slot=avatar-fallback]]:bg-primary [&_[data-slot=avatar-fallback]]:text-[11px] [&_[data-slot=avatar-fallback]]:font-semibold [&_[data-slot=avatar-fallback]]:text-primary-foreground"
+              />
               <div className="min-w-0 flex-1">
                 <VideoProposal
                   video={proposal}
@@ -138,6 +162,11 @@ export function ChatPanel(props: ChatPanelProps) {
           ) : null}
 
           <ChatContainerScrollAnchor />
+
+          {/* Stick-to-bottom affordance, shown only when the reader has scrolled up. */}
+          <div className="sticky bottom-3 z-10 flex justify-center">
+            <ScrollButton className="shadow-lg backdrop-blur-xl" />
+          </div>
         </ChatContainerContent>
       </ChatContainerRoot>
 
@@ -192,15 +221,17 @@ function Composer({
         <PromptInputActions className="justify-between px-0.5 pt-1">
           <ToolMenu value={mode} onChange={onModeChange} disabled={busy} />
 
-          <Button
-            size="icon"
-            className="size-9 rounded-full"
-            onClick={onSubmit}
-            disabled={busy || input.trim().length === 0}
-            aria-label="Send message"
-          >
-            <ArrowUp className="size-4" />
-          </Button>
+          <PromptInputAction tooltip="Send" side="top">
+            <Button
+              size="icon"
+              className="size-9 rounded-full"
+              onClick={onSubmit}
+              disabled={busy || input.trim().length === 0}
+              aria-label="Send message"
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+          </PromptInputAction>
         </PromptInputActions>
       </PromptInput>
 
@@ -232,6 +263,18 @@ function MessageRow({
   const isUser = message.role === "user";
   const isError = message.role === "error";
   const isAssistant = message.role === "assistant";
+  const typing = isAssistant && !message.text && message.steps.length === 0 && busy;
+
+  const bubble = cn(
+    "max-w-[68ch] rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed shadow-none",
+    isUser && "bg-primary text-primary-foreground shadow-lg shadow-primary/20",
+    isAssistant &&
+      cn(
+        "border border-border/60 bg-card/70 text-card-foreground backdrop-blur-xl",
+        MARKDOWN_CLASSES,
+      ),
+    isError && "border border-destructive/40 bg-destructive/10 text-foreground backdrop-blur",
+  );
 
   return (
     <motion.div
@@ -240,61 +283,53 @@ function MessageRow({
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
       <Message className={cn("flex-row", isUser && "flex-row-reverse")}>
-        <div
+        <MessageAvatar
+          src=""
+          alt={isUser ? "You" : "Assistant"}
+          fallback={isUser ? "You" : "AI"}
           className={cn(
-            "grid size-8 shrink-0 place-items-center rounded-xl",
+            "size-8 [&_[data-slot=avatar-fallback]]:text-[11px] [&_[data-slot=avatar-fallback]]:font-semibold",
             isUser
-              ? "border border-border/70 bg-background/70 text-muted-foreground backdrop-blur"
-              : "bg-primary text-primary-foreground",
+              ? "[&_[data-slot=avatar-fallback]]:bg-background/70"
+              : "[&_[data-slot=avatar-fallback]]:bg-primary [&_[data-slot=avatar-fallback]]:text-primary-foreground",
           )}
-          aria-hidden="true"
-        >
-          {isUser ? <User className="size-4" /> : <Sparkles className="size-4" />}
-        </div>
+        />
 
         <div className={cn("flex min-w-0 flex-col", isUser ? "items-end" : "items-start")}>
-          <div
-            className={cn(
-              "max-w-[68ch] break-words rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed",
-              isUser && "bg-primary text-primary-foreground shadow-lg shadow-primary/20",
-              isAssistant && "border border-border/60 bg-card/70 text-card-foreground backdrop-blur-xl",
-              isError && "border border-destructive/40 bg-destructive/10 text-foreground backdrop-blur",
-            )}
-          >
-            {message.text ? (
-              <span className="whitespace-pre-wrap">{linkify(message.text)}</span>
-            ) : null}
-
-            {message.steps.length > 0 ? (
-              <div
-                className={cn(
-                  "flex flex-col gap-1.5",
-                  message.text && "mt-2.5 border-t border-border/60 pt-2.5",
-                )}
-              >
-                {message.steps.map((step, index) => {
-                  const done = !busy || index < message.steps.length - 1;
-                  return (
-                    <div
-                      key={`${index}-${step}`}
-                      className="flex items-center gap-2 text-xs text-muted-foreground"
-                    >
-                      {done ? (
-                        <Check className="size-3 shrink-0 text-success" />
-                      ) : (
-                        <Loader variant="pulse-dot" size="sm" />
-                      )}
-                      <span>{step}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-
-            {isAssistant && !message.text && message.steps.length === 0 && busy ? (
+          {typing ? (
+            <div className={cn(bubble, "flex items-center")}>
               <Loader variant="dots" size="sm" />
-            ) : null}
-          </div>
+            </div>
+          ) : message.text ? (
+            <MessageContent
+              markdown={isAssistant}
+              className={cn(bubble, !isAssistant && "whitespace-pre-wrap")}
+              {...(isAssistant ? { components: MARKDOWN_COMPONENTS } : {})}
+            >
+              {message.text}
+            </MessageContent>
+          ) : null}
+
+          {message.steps.length > 0 ? (
+            <div className="mt-2.5 flex flex-col gap-1.5">
+              {message.steps.map((step, index) => {
+                const done = !busy || index < message.steps.length - 1;
+                return (
+                  <div
+                    key={`${index}-${step}`}
+                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                  >
+                    {done ? (
+                      <Check className="size-3 shrink-0 text-success" />
+                    ) : (
+                      <Loader variant="pulse-dot" size="sm" />
+                    )}
+                    <span>{step}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
 
           {isAssistant && (message.text || message.steps.length > 0) ? (
             <AssistantMeta message={message} model={model} />
@@ -320,8 +355,11 @@ function AssistantMeta({ message, model }: { message: ChatMessage; model: string
     }
   }
 
+  const actionButton =
+    "size-6 rounded-md text-muted-foreground hover:text-foreground";
+
   return (
-    <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+    <MessageActions className="mt-2 text-[11px] text-muted-foreground">
       {message.at ? <time className="tabular-nums">{formatTime(message.at)}</time> : null}
 
       {model ? (
@@ -331,70 +369,48 @@ function AssistantMeta({ message, model }: { message: ChatMessage; model: string
         </span>
       ) : null}
 
-      <div className="ml-1 flex items-center gap-0.5">
-        {message.text ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6 rounded-md text-muted-foreground hover:text-foreground"
-            onClick={copy}
-            aria-label={copied ? "Copied" : "Copy message"}
-          >
-            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          </Button>
-        ) : null}
+      <MessageAction tooltip={copied ? "Copied" : "Copy message"} side="top">
         <Button
           variant="ghost"
           size="icon"
-          className={cn(
-            "size-6 rounded-md hover:text-foreground",
-            vote === "up" ? "text-foreground" : "text-muted-foreground",
-          )}
+          className={actionButton}
+          onClick={copy}
+          disabled={!message.text}
+          aria-label={copied ? "Copied" : "Copy message"}
+        >
+          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+        </Button>
+      </MessageAction>
+
+      <MessageAction tooltip="Good response" side="top">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(actionButton, vote === "up" ? "text-foreground" : "text-muted-foreground")}
           onClick={() => setVote((current) => (current === "up" ? null : "up"))}
           aria-pressed={vote === "up"}
           aria-label="Good response"
         >
           <ThumbsUp className="size-3.5" />
         </Button>
+      </MessageAction>
+
+      <MessageAction tooltip="Bad response" side="top">
         <Button
           variant="ghost"
           size="icon"
-          className={cn(
-            "size-6 rounded-md hover:text-foreground",
-            vote === "down" ? "text-foreground" : "text-muted-foreground",
-          )}
+          className={cn(actionButton, vote === "down" ? "text-foreground" : "text-muted-foreground")}
           onClick={() => setVote((current) => (current === "down" ? null : "down"))}
           aria-pressed={vote === "down"}
           aria-label="Bad response"
         >
           <ThumbsDown className="size-3.5" />
         </Button>
-      </div>
-    </div>
+      </MessageAction>
+    </MessageActions>
   );
 }
 
 function formatTime(at: number): string {
   return new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
-
-const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
-
-/** Turn bare URLs in a message into links so a source can be opened directly. */
-function linkify(text: string) {
-  return text.split(URL_PATTERN).map((part, index) =>
-    /^https?:\/\//.test(part) ? (
-      <a
-        key={index}
-        href={part}
-        target="_blank"
-        rel="noreferrer"
-        className="break-all underline underline-offset-2 hover:opacity-80"
-      >
-        {part}
-      </a>
-    ) : (
-      <span key={index}>{part}</span>
-    ),
-  );
 }

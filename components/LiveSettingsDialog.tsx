@@ -13,21 +13,10 @@ import {
 import { cn } from "@/lib/utils";
 import type { DeviceOption } from "@/lib/useDevices";
 import { VOICES } from "@/lib/voices";
+import { DEFAULT_PREFS, type LivePrefs } from "@/lib/live-prefs";
 
-export type LivePrefs = {
-  /** Show the live transcript over the camera like subtitles. */
-  captions: boolean;
-  /** Speak the roast/praise callouts out loud. */
-  voice: boolean;
-  /** Mirror the camera preview horizontally. */
-  mirror: boolean;
-};
-
-export const DEFAULT_PREFS: LivePrefs = {
-  captions: true,
-  voice: true,
-  mirror: true,
-};
+export { DEFAULT_PREFS };
+export type { LivePrefs };
 
 type Props = {
   mics: DeviceOption[];
@@ -80,6 +69,7 @@ export function LiveSettingsDialog(props: Props) {
             label="Camera"
             value={props.cameraId}
             onChange={props.onCameraChange}
+            disabled={props.running}
             options={props.cameras.map((c) => ({ value: c.deviceId, label: c.label }))}
           />
           <DeviceSelect

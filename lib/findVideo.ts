@@ -9,6 +9,8 @@ export interface FindVideoResult {
 
 export interface FindVideoOptions {
   onStep?: (label: string) => void;
+  /** When "latest", sort results by upload date and prefer the newest match. */
+  recency?: "latest" | "relevant";
 }
 
 const RESULTS_SELECTOR = "ytd-video-renderer";
@@ -27,6 +29,7 @@ export async function findBestVideo(
   options: FindVideoOptions = {},
 ): Promise<FindVideoResult> {
   const step = options.onStep ?? (() => {});
+  const recency = options.recency ?? "relevant";
 
   step("Starting a cloud browser session…");
   const browser = await browserbase.launch({ apiKey: env.browserbaseApiKey });
@@ -40,11 +43,16 @@ export async function findBestVideo(
 
     try {
       const [page] = await browser.context.pages();
-      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(
-        description,
-      )}`;
+      // `sp=CAI%3D` is YouTube's "Sort by: upload date" filter. When the user asked
+      // for the latest video, sort by recency so the newest uploads lead instead of
+      // burying them under whatever YouTube considers most relevant.
+      const searchUrl =
+        `https://www.youtube.com/results?search_query=${encodeURIComponent(description)}` +
+        (recency === "latest" ? "&sp=CAI%3D" : "");
 
-      step(`Searching YouTube for “${description}”…`);
+      step(
+        `Searching YouTube for “${description}”${recency === "latest" ? " (newest first)" : ""}…`,
+      );
 
       // YouTube issues a one-time client-side redirect (adds `themeRefresh=1`), which can
       // abort in-flight CDP evaluations. Wait for `load` and retry the whole navigation.
@@ -77,7 +85,12 @@ export async function findBestVideo(
 
       const { data } = await stagehand.extract(
         `From these YouTube search results, choose the ONE video that best matches this ` +
-          `description: "${description}". It must be a full-length video (never a YouTube Short) ` +
+          `description: "${description}". ` +
+          (recency === "latest"
+            ? `The user wants the MOST RECENT one: read the "uploaded … ago" line under each ` +
+              `result and prefer the smallest age that still matches the description. `
+            : "") +
+          `It must be a full-length video (never a YouTube Short) ` +
           `in which the person is actually speaking — a speech, interview, remark, or debate — ` +
           `because we will transcribe the audio. Prefer official channels. Return the 5 best ` +
           `candidates you considered.`,

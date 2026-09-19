@@ -1,8 +1,12 @@
 import { env } from "@/lib/env";
 import { stripTags } from "@/lib/roast";
-import { DEFAULT_VOICE_ID, TTS_MODEL_ID } from "@/lib/voices";
+import { DEFAULT_VOICE_ID, TTS_MODEL_ID, VOICES } from "@/lib/voices";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
+
+/** Longest line we will synthesize; the roast bank is far shorter. */
+const MAX_TEXT_LENGTH = 1_000;
 
 /**
  * The roast lines come from a fixed bank, so the same audio is requested over
@@ -64,8 +68,16 @@ export async function POST(request: Request) {
     };
     const text = body.text?.trim();
     if (!text) return Response.json({ error: "Empty text" }, { status: 400 });
+    if (text.length > MAX_TEXT_LENGTH) {
+      return Response.json({ error: "Text too long" }, { status: 400 });
+    }
 
-    const voiceId = body.voiceId || DEFAULT_VOICE_ID;
+    // Only allow a voice we ship; the id is interpolated into the upstream URL.
+    const requested = body.voiceId;
+    const voiceId =
+      requested && VOICES.some((voice) => voice.id === requested)
+        ? requested
+        : DEFAULT_VOICE_ID;
     const audio = await synthesize(voiceId, text);
 
     if (body.warm) return Response.json({ ok: true, bytes: audio.byteLength });

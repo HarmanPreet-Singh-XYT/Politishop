@@ -31,6 +31,7 @@ export function AnalyticsPanel({
   sessionId,
   primarySpeaker,
   primarySpeakerReason,
+  showTitle = true,
 }: {
   video: VideoSummary | null;
   transcript: Transcript;
@@ -38,6 +39,8 @@ export function AnalyticsPanel({
   sessionId: string | null;
   primarySpeaker?: string | null;
   primarySpeakerReason?: string | null;
+  /** False when the caller already shows the video title as a heading. */
+  showTitle?: boolean;
 }) {
   const speakers = speakerSummaries(transcript);
   // Seed from the auto-pick so we score one scope on mount instead of re-scoring immediately.
@@ -134,9 +137,11 @@ export function AnalyticsPanel({
           <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Transcript
           </p>
-          <h2 className="mt-1 truncate text-[17px] font-semibold leading-tight tracking-tight">
-            {video?.title ?? "Untitled video"}
-          </h2>
+          {showTitle ? (
+            <h2 className="mt-1 truncate text-[17px] font-semibold leading-tight tracking-tight">
+              {video?.title ?? "Untitled video"}
+            </h2>
+          ) : null}
           {video?.channel ? (
             <p className="mt-0.5 truncate text-xs text-muted-foreground">{video.channel}</p>
           ) : null}

@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { VerdictBadge } from "./VerdictBadge";
+import { HeatmapSentence, heatTokens } from "./TranscriptHeatmap";
 import { CHUNK_TARGET_WORDS } from "@/lib/chunker";
-import { SENTENCE_AI_THRESHOLD, SENTENCE_HUMAN_MAX } from "@/lib/constants";
 import type { ScribeStatus } from "@/lib/scribe";
 import type { Detection } from "@/lib/types";
 
@@ -18,12 +18,6 @@ type Props = {
   speaking: boolean;
   status: ScribeStatus;
   wordsSent: number;
-};
-
-type Token = {
-  key: string;
-  text: string;
-  ai: number;
 };
 
 const STATUS_COPY: Record<ScribeStatus, string> = {
@@ -46,16 +40,7 @@ export function LiveTranscriptPanel(props: Props) {
   const reduced = useReducedMotion();
   const endRef = useRef<HTMLDivElement>(null);
 
-  const tokens = useMemo<Token[]>(() => {
-    const out: Token[] = [];
-    for (const d of props.detections) {
-      d.sentences.forEach((s, i) => {
-        if (!s.sentence.trim()) return;
-        out.push({ key: `${d.id}-${i}`, text: s.sentence, ai: s.ai });
-      });
-    }
-    return out;
-  }, [props.detections]);
+  const tokens = useMemo(() => heatTokens(props.detections), [props.detections]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({
@@ -116,7 +101,7 @@ export function LiveTranscriptPanel(props: Props) {
           ) : (
             <p className="text-[clamp(17px,1.6vw,22px)] font-medium leading-[1.45]">
               {tokens.map((t) => (
-                <Sentence key={t.key} token={t} reduced={!!reduced} />
+                <HeatmapSentence key={t.key} token={t} reduced={!!reduced} />
               ))}
               {props.pendingText && (
                 <span className="text-foreground/45"> {props.pendingText}</span>
@@ -151,40 +136,3 @@ export function LiveTranscriptPanel(props: Props) {
   );
 }
 
-function Sentence({ token, reduced }: { token: Token; reduced: boolean }) {
-  const band =
-    token.ai >= SENTENCE_AI_THRESHOLD
-      ? "ai"
-      : token.ai >= SENTENCE_HUMAN_MAX
-        ? "mixed"
-        : "human";
-
-  const style =
-    band === "ai"
-      ? {
-          background: "color-mix(in oklch, var(--destructive) 28%, transparent)",
-          color: "color-mix(in oklch, var(--destructive) 35%, white)",
-        }
-      : band === "mixed"
-        ? {
-            background: "color-mix(in oklch, var(--warning) 20%, transparent)",
-            color: "var(--warning)",
-          }
-        : {
-            background: "color-mix(in oklch, var(--success) 18%, transparent)",
-            color: "var(--foreground)",
-          };
-
-  return (
-    <motion.span
-      initial={reduced ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25 }}
-      title={`AI ${Math.round(token.ai * 100)}%`}
-      className="mr-[0.3em] box-decoration-clone rounded-[4px] px-[0.15em] py-[0.05em]"
-      style={style}
-    >
-      {token.text}
-    </motion.span>
-  );
-}

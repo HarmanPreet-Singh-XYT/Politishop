@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { Plus } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { LiveRecordButton } from "./LiveRecordButton";
 import { LiveSettingsDialog, type LivePrefs } from "./LiveSettingsDialog";
+import { Button } from "@/components/ui/button";
 import type { PersonaState } from "./ai-elements/persona";
 import { cn } from "@/lib/utils";
 import type { CameraState, DeviceOption } from "@/lib/useDevices";
@@ -24,6 +26,8 @@ type Props = {
   voiceId: string;
   onVoiceChange: (id: string) => void;
   onToggle: () => void;
+  /** Closes the current session and starts a fresh one. */
+  onNewSession: () => void;
   onPreviewVoice: () => void;
   /** The tail of the live transcript, shown over the video like subtitles. */
   caption: string;
@@ -60,19 +64,32 @@ export function LiveCapturePanel(props: Props) {
             Record a speech and score it as it is spoken
           </p>
         </div>
-        <LiveSettingsDialog
-          mics={props.mics}
-          cameras={props.cameras}
-          micId={props.micId}
-          cameraId={props.cameraId}
-          onMicChange={props.onMicChange}
-          onCameraChange={props.onCameraChange}
-          voiceId={props.voiceId}
-          onVoiceChange={props.onVoiceChange}
-          prefs={props.prefs}
-          onPrefsChange={props.onPrefsChange}
-          running={props.running}
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={props.onNewSession}
+            disabled={props.running}
+            title="Close this session and start a new one"
+          >
+            <Plus className="size-3.5" />
+            New session
+          </Button>
+          <LiveSettingsDialog
+            mics={props.mics}
+            cameras={props.cameras}
+            micId={props.micId}
+            cameraId={props.cameraId}
+            onMicChange={props.onMicChange}
+            onCameraChange={props.onCameraChange}
+            voiceId={props.voiceId}
+            onVoiceChange={props.onVoiceChange}
+            prefs={props.prefs}
+            onPrefsChange={props.onPrefsChange}
+            running={props.running}
+          />
+        </div>
       </header>
 
       {/* Portrait frame that grows to fill whatever height the column has, so
@@ -137,18 +154,20 @@ export function LiveCapturePanel(props: Props) {
           </span>
         ) : null}
 
-        {props.speaking && (
-          <motion.div
-            className="pointer-events-none absolute inset-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              background:
-                "radial-gradient(120% 90% at 50% 100%, color-mix(in oklch, var(--destructive) 35%, transparent), transparent 70%)",
-            }}
-          />
-        )}
+        <AnimatePresence>
+          {props.speaking && (
+            <motion.div
+              className="pointer-events-none absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                background:
+                  "radial-gradient(120% 90% at 50% 100%, color-mix(in oklch, var(--destructive) 35%, transparent), transparent 70%)",
+              }}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="flex items-center justify-center gap-6">

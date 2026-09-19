@@ -7,11 +7,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const session = await getChat(id);
-  if (!session) {
-    return Response.json({ error: "Conversation not found." }, { status: 404 });
+  try {
+    const session = await getChat(id);
+    if (!session) {
+      return Response.json({ error: "Conversation not found." }, { status: 404 });
+    }
+    return Response.json(session);
+  } catch {
+    return Response.json({ error: "Could not load that conversation." }, { status: 500 });
   }
-  return Response.json(session);
 }
 
 export async function PUT(

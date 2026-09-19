@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "cli": "tsx scripts/cli.ts",
+    "db:setup": "tsx scripts/db-setup.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "motion": "^12.0.0",
     "next": "^15.1.0",
     "openai": "^7.19.0",
+    "pg": "^8.23.0",
     "radix-ui": "^1.6.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -38,6 +40,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "postcss": "^8.5.28",

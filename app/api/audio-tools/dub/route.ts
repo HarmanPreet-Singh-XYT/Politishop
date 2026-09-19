@@ -6,6 +6,27 @@ export const maxDuration = 300;
 const ELEVENLABS_API = "https://api.elevenlabs.io";
 const DUBBING_MODEL = "dubbing_v2";
 
+/** ElevenLabs ids are opaque, but they are interpolated into URLs — keep them simple. */
+const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+/** Languages the UI offers; anything else is a client bug worth rejecting. */
+const TARGET_LANGUAGES = new Set([
+  "es", "fr", "de", "pt", "it", "hi", "ar", "zh", "ja", "ko", "ru",
+]);
+
+/** ElevenLabs fetches the source URL itself, so keep it to https YouTube links. */
+function isAllowedSource(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return false;
+    return ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(
+      url.hostname,
+    );
+  } catch {
+    return false;
+  }
+}
+
 interface ProjectResponse {
   project_id?: string;
   status?: string;
@@ -37,6 +58,15 @@ export async function POST(request: Request) {
       { error: "A source URL and a target language are both required." },
       { status: 400 },
     );
+  }
+  if (!isAllowedSource(sourceUrl)) {
+    return Response.json(
+      { error: "Only https YouTube links can be dubbed." },
+      { status: 400 },
+    );
+  }
+  if (!TARGET_LANGUAGES.has(targetLang)) {
+    return Response.json({ error: "Unsupported target language." }, { status: 400 });
   }
 
   const form = new FormData();
@@ -98,8 +128,11 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const projectId = params.get("projectId");
   let languageId = params.get("languageId");
-  if (!projectId) {
-    return Response.json({ error: "projectId is required." }, { status: 400 });
+  if (!projectId || !ID_PATTERN.test(projectId)) {
+    return Response.json({ error: "A valid projectId is required." }, { status: 400 });
+  }
+  if (languageId && !ID_PATTERN.test(languageId)) {
+    return Response.json({ error: "Invalid languageId." }, { status: 400 });
   }
 
   const auth = { "xi-api-key": env.elevenLabsApiKey };
@@ -131,7 +164,7 @@ export async function GET(request: Request) {
     }
 
     const languageResponse = await fetch(
-      `${ELEVENLABS_API}/v1/dubbing/project/${projectId}/language/${languageId}`,
+      `${ELEVENLABS_API}/v1/dubbing/project/${encodeURIComponent(projectId)}/language/${encodeURIComponent(languageId)}`,
       { headers: auth, cache: "no-store" },
     );
     if (!languageResponse.ok) {

@@ -1,6 +1,8 @@
+import { env } from "@/lib/env";
 import { scoreChunk } from "@/lib/live-scoring";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 /**
  * Scores one live chunk of transcript with GPTZero. The `/api/detect` route
@@ -17,6 +19,12 @@ export async function POST(request: Request) {
     // The API rejects documents over 50000 characters.
     if (text.length > 50_000) {
       return Response.json({ error: "Document too long" }, { status: 400 });
+    }
+    if (!env.hasGptzero()) {
+      return Response.json(
+        { error: "GPTZero is not configured." },
+        { status: 503 },
+      );
     }
     const detection = await scoreChunk(text, body.index ?? 0);
     return Response.json(detection);

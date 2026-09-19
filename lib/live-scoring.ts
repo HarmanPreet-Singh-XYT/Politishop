@@ -24,6 +24,11 @@ function verdictOf(raw: string | undefined): Verdict {
   return "human";
 }
 
+function confidenceOf(raw: string | undefined): Detection["confidence"] {
+  if (raw === "high" || raw === "medium" || raw === "low") return raw;
+  return "medium";
+}
+
 function probsOf(doc: RawDocument, verdict: Verdict): ClassProbs {
   const raw = doc.class_probabilities;
   if (raw) {
@@ -100,8 +105,7 @@ export async function scoreChunk(
     verdict,
     probability,
     probs,
-    confidence:
-      (doc.confidence_category as Detection["confidence"]) ?? "medium",
+    confidence: confidenceOf(doc.confidence_category),
     subclass: subclassOf(doc.subclass),
     sentences,
     words,

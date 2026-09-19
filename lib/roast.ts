@@ -85,11 +85,6 @@ export function pickLine(verdict: Verdict, previous?: string): Line {
   return options[Math.floor(Math.random() * options.length)];
 }
 
-/** Every line, for cache pre-warming. */
-export function allLines(): Line[] {
-  return [...AI_LINES, ...HUMAN_LINES, ...MIXED_LINES];
-}
-
 /** The lines worth pre-warming before the first verdict lands. */
 export function warmupLines(): Line[] {
   return [AI_LINES[0], AI_LINES[1], HUMAN_LINES[0], MIXED_LINES[0]];

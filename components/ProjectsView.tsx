@@ -265,6 +265,7 @@ function ProjectWorkspace({
                   if (event.key === "Enter") void save();
                   if (event.key === "Escape") setEditing(false);
                 }}
+                aria-label="Project name"
                 className="min-w-0 flex-1 rounded-lg border border-border bg-background/70 px-3 py-1.5 text-[15px] font-semibold tracking-tight outline-none focus-visible:border-ring"
               />
               <Button size="icon" className="size-8 shrink-0" onClick={() => void save()} disabled={busy}>
@@ -331,6 +332,7 @@ function ProjectWorkspace({
           transcript={project.transcript}
           stats={project.stats}
           sessionId={null}
+          showTitle={false}
         />
       </div>
     </div>

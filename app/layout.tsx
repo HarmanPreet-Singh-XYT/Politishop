@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Speech Ingest — find & transcribe",
+  title: "Politislop — find & transcribe",
   description:
     "Chat with an agent that finds a political speech on YouTube and transcribes it.",
 };

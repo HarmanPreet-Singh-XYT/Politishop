@@ -36,12 +36,12 @@ async function main(): Promise<void> {
   console.log(`Duration: ${formatDuration(stats.duration)}`);
   console.log(`\nTranscript preview:\n${transcript.text.slice(0, 400)}`);
 
-  const { file } = await saveTranscriptRun({
+  const { id } = await saveTranscriptRun({
     video: toVideoProposal(pick),
     stats,
     transcript,
   });
-  console.log(`\nSaved to ${file} (visible under Existing Content)`);
+  console.log(`\nSaved transcript run ${id} (visible under Existing Content)`);
 }
 
 main().catch((error: unknown) => {

@@ -11,6 +11,9 @@ export function parseVideoId(input: string): string | null {
     const url = new URL(trimmed);
     const paramId = url.searchParams.get("v");
     if (paramId) return paramId;
+    if (url.hostname === "youtu.be" || url.hostname.endsWith(".youtu.be")) {
+      return url.pathname.match(/^\/([\w-]{11})/)?.[1] ?? null;
+    }
     return url.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]+)/)?.[1] ?? null;
   } catch {
     return trimmed.match(/^[\w-]{11}$/)?.[0] ?? null;

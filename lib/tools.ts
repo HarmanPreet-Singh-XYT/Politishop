@@ -41,19 +41,25 @@ export const toolDefinitions: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "find_video",
       description:
-        "Find the single best YouTube video for a description (or verify a specific link) and return it. Does not transcribe. Pass either a natural-language \"query\" or a specific \"url\" — at least one is required.",
+        "Find the single best YouTube video for a description (or verify a specific link) and return it. Does not transcribe. Pass either a natural-language \"query\" or a specific \"url\" — at least one is required. The query must be a short topic-style search (e.g. \"Trump speech\"), not the user's sentence.",
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
             description:
-              "Natural-language description of the video the user wants. Omit when passing a url.",
+              "Short YouTube search query: subject plus any named event/venue/year. Omit when passing a url. Never a full sentence, and never containing recency words like \"latest\" or \"last\".",
           },
           url: {
             type: "string",
             description:
               "A specific YouTube URL (youtube.com/watch, youtu.be, /shorts, /embed) to use instead of searching.",
+          },
+          recency: {
+            type: "string",
+            enum: ["latest", "relevant"],
+            description:
+              'Use "latest" when the user wants the newest/most recent/last video; otherwise "relevant". Defaults to "relevant".',
           },
         },
         additionalProperties: false,
@@ -137,7 +143,11 @@ async function findVideo(args: Record<string, unknown>, state: ToolState, emit: 
 
   if (!query) return { error: "I need a description or a link to find a video." };
 
-  const { pick, sessionId } = await findBestVideo(query, { onStep: (label) => emit({ type: "step", label }) });
+  const recency = args.recency === "latest" ? "latest" : "relevant";
+  const { pick, sessionId } = await findBestVideo(query, {
+    recency,
+    onStep: (label) => emit({ type: "step", label }),
+  });
   const video = toVideoProposal(pick);
   state.proposal = { video, sessionId };
   emit({ type: "proposal", video, sessionId });

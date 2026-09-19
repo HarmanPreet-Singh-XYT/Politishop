@@ -286,6 +286,9 @@ export function useAgentChat() {
     setTranscript(session.transcript ?? null);
     setStats(session.stats ?? null);
     setPrimarySpeaker(session.primarySpeaker ?? null);
+    // Not persisted with the session, so clear it rather than showing the
+    // previous conversation's reason.
+    setPrimarySpeakerReason(null);
     setView(session.transcript ? "split" : "chat");
     setStatus("idle");
     setModel(null);

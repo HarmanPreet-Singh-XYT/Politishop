@@ -23,6 +23,7 @@ export default function Page() {
   const [tab, setTab] = useState("live");
   const [existingView, setExistingView] = useState<"chat" | "transcripts">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [liveRailOpen, setLiveRailOpen] = useState(false);
 
   // The history rail is an overlay on phones, so it must start closed there —
   // open it by default only when there is room to dock it beside the chat.
@@ -43,7 +44,17 @@ export default function Page() {
     <Tabs value={tab} onValueChange={setTab} className="flex h-dvh flex-col gap-0!">
       <header className="glass-strong shrink-0 border-b border-border/70 px-3 pt-2 sm:grid sm:h-12 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3 sm:pt-0">
         <div className="flex min-w-0 items-center gap-2">
-          {tab === "existing" && !sidebarOpen ? (
+          {tab === "live" && !liveRailOpen ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground hover:text-foreground"
+              onClick={() => setLiveRailOpen(true)}
+              aria-label="Show live sessions"
+            >
+              <PanelLeft className="size-4" />
+            </Button>
+          ) : tab === "existing" && !sidebarOpen ? (
             <Button
               variant="ghost"
               size="icon"
@@ -61,7 +72,7 @@ export default function Page() {
           >
             <Sparkles className="size-3.5" />
           </span>
-          <span className="truncate text-sm font-medium tracking-tight">Speech Ingest</span>
+          <span className="truncate text-sm font-medium tracking-tight">Politislop</span>
         </div>
 
         {/* Horizontal scroll on phones, centred in the grid cell from sm up. */}
@@ -71,8 +82,7 @@ export default function Page() {
               Live
             </TabsTrigger>
             <TabsTrigger value="existing" className="px-3">
-              <span className="hidden sm:inline">Existing Content</span>
-              <span className="sm:hidden">Existing</span>
+              Chat
             </TabsTrigger>
             <TabsTrigger value="projects" className="px-3">
               Projects
@@ -221,7 +231,10 @@ export default function Page() {
         value="live"
         className="min-h-0 flex-1 data-[state=inactive]:hidden"
       >
-        <LiveView />
+        <LiveView
+          railOpen={liveRailOpen}
+          onRailClose={() => setLiveRailOpen(false)}
+        />
       </TabsContent>
       <TabsContent
         forceMount
