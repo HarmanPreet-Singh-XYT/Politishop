@@ -6,8 +6,7 @@ export { AI_BANDS, aiPct };
 
 export const bandOf = aiShareBand;
 
-/** Text tone that resolves on paper first, then falls back to the dark set. */
-const MUTED = "var(--muted-ink, var(--muted))";
+const MUTED = "var(--muted-foreground)";
 
 export function AiMeter({
   ai,
@@ -82,7 +81,7 @@ export function BandLegend({ className = "" }: { className?: string }) {
           />
         ))}
       </span>
-      <span style={{ color: "var(--faint-ink, var(--faint))" }}>
+      <span className="text-muted-foreground/70">
         0% human hands → 100% reads like a bot
       </span>
     </p>

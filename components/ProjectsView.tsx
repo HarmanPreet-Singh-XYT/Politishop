@@ -40,9 +40,12 @@ function formatDate(iso: string): string {
 
 export function ProjectsView({
   focusId,
+  focusToken = 0,
   onBack,
 }: {
   focusId?: string | null;
+  /** Bump to re-open focusId even when it is unchanged (e.g. reopening after going back). */
+  focusToken?: number;
   onBack?: () => void;
 }) {
   const [items, setItems] = useState<ProjectItem[] | null>(null);
@@ -87,7 +90,7 @@ export function ProjectsView({
     if (!focusId) return;
     void load();
     void open(focusId);
-  }, [focusId, open, load]);
+  }, [focusId, focusToken, open, load]);
 
   if (selected) {
     return (

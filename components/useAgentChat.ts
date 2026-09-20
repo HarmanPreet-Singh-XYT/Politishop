@@ -216,7 +216,13 @@ export function useAgentChat() {
     beginTurn("user", trimmed);
     setStatus("thinking");
     try {
-      await stream({ action: "message", message: trimmed, history });
+      await stream({
+        action: "message",
+        message: trimmed,
+        history,
+        transcript: transcript?.text ?? null,
+        video: proposal,
+      });
     } catch (error) {
       fail(error);
     }

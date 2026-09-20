@@ -26,6 +26,8 @@ export default function Page() {
   const [existingView, setExistingView] = useState<"chat" | "transcripts">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [liveRailOpen, setLiveRailOpen] = useState(false);
+  // Bumped to re-open the created project even if it was already opened and closed.
+  const [projectFocus, setProjectFocus] = useState(0);
 
   // The history rail is an overlay on phones, so it must start closed there —
   // open it by default only when there is room to dock it beside the chat.
@@ -34,10 +36,6 @@ export default function Page() {
       setSidebarOpen(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (chat.createdProject) setTab("projects");
-  }, [chat.createdProject]);
 
   const split =
     existingView === "chat" && chat.view === "split" && chat.transcript && chat.stats;
@@ -190,7 +188,7 @@ export default function Page() {
             layout
             transition={SPRING}
             className={cn(
-              "flex min-h-0 flex-1 gap-5 p-4 sm:p-5",
+              "flex min-h-0 flex-1 gap-5 px-4 sm:px-5",
               split ? "flex-col lg:flex-row" : "justify-center",
             )}
           >
@@ -203,16 +201,26 @@ export default function Page() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={SPRING}
-                  className="scroll-quiet min-h-0 min-w-0 flex-1 overflow-y-auto pr-1"
+                  className="flex min-h-0 min-w-0 flex-1 flex-col py-4 sm:py-5"
                 >
-                  <AnalyticsPanel
-                    video={chat.proposal}
-                    transcript={chat.transcript!}
-                    stats={chat.stats!}
-                    sessionId={chat.sessionId}
-                    primarySpeaker={chat.primarySpeaker}
-                    primarySpeakerReason={chat.primarySpeakerReason}
-                  />
+                  <div className="scroll-quiet min-h-0 flex-1 overflow-y-auto pr-1">
+                    <AnalyticsPanel
+                      video={chat.proposal}
+                      transcript={chat.transcript!}
+                      stats={chat.stats!}
+                      sessionId={chat.sessionId}
+                      primarySpeaker={chat.primarySpeaker}
+                      primarySpeakerReason={chat.primarySpeakerReason}
+                      onOpenProject={
+                        chat.createdProject
+                          ? () => {
+                              setProjectFocus((count) => count + 1);
+                              setTab("projects");
+                            }
+                          : undefined
+                      }
+                    />
+                  </div>
                 </motion.section>
               ) : null}
             </AnimatePresence>
@@ -222,8 +230,10 @@ export default function Page() {
               layoutId="chat"
               transition={SPRING}
               className={cn(
-                "flex min-h-0 flex-col",
-                split ? "w-full lg:w-[420px] lg:shrink-0" : "w-full",
+                "flex min-h-0 flex-col py-4 sm:py-5",
+                split
+                  ? "w-full border-t border-border/60 lg:w-[420px] lg:shrink-0 lg:border-t-0 lg:border-l lg:pl-5"
+                  : "w-full",
               )}
             >
               <ChatPanel
@@ -253,7 +263,7 @@ export default function Page() {
         value="projects"
         className="min-h-0 flex-1 data-[state=inactive]:hidden"
       >
-        <ProjectsView focusId={chat.createdProject?.id} />
+        <ProjectsView focusId={chat.createdProject?.id} focusToken={projectFocus} />
       </TabsContent>
 
       <TabsContent

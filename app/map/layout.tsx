@@ -1,14 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Newsreader } from "next/font/google";
 import Link from "next/link";
-import "../paper.css";
-import "./map.css";
-
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-newsreader",
-});
+import { SubHeader } from "@/components/SubHeader";
 
 export const metadata: Metadata = {
   title: "Map — Human on the Podium",
@@ -17,19 +9,27 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#edf5f7",
+  themeColor: "#0d1114",
   viewportFit: "cover",
 };
 
 export default function MapLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`${newsreader.variable} paper-root map-root`}>
-      <Link
-        href="/"
-        className="fixed left-5 top-4 z-50 inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--muted-ink)] transition-colors hover:text-[var(--ink)] sm:left-8"
-      >
-        ← Back to app
-      </Link>
+    <div className="flex min-h-dvh flex-col">
+      <SubHeader>
+        <Link
+          href="/investigate"
+          className="hidden underline-offset-4 hover:text-foreground hover:underline sm:inline"
+        >
+          Investigate ↗
+        </Link>
+        <Link
+          href="/"
+          className="underline-offset-4 hover:text-foreground hover:underline"
+        >
+          ← Back to app
+        </Link>
+      </SubHeader>
       {children}
     </div>
   );

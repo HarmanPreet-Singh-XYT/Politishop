@@ -17,6 +17,7 @@ export function BasicAnalytics({
   report,
   loading,
   error,
+  showTitle = true,
 }: {
   video: VideoSummary | null;
   stats: TranscriptStats;
@@ -24,6 +25,8 @@ export function BasicAnalytics({
   report: AiReport | null;
   loading: boolean;
   error: string | null;
+  /** False when the caller already shows the video title as a heading. */
+  showTitle?: boolean;
 }) {
   const probability =
     report?.document?.completelyGeneratedProb ?? report?.document?.aiProb ?? null;
@@ -35,9 +38,11 @@ export function BasicAnalytics({
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Detection
         </p>
-        <h2 className="mt-1 truncate text-[17px] font-semibold leading-tight tracking-tight">
-          {video?.title ?? "Untitled video"}
-        </h2>
+        {showTitle ? (
+          <h2 className="mt-1 truncate text-[17px] font-semibold leading-tight tracking-tight">
+            {video?.title ?? "Untitled video"}
+          </h2>
+        ) : null}
         {video?.channel ? (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{video.channel}</p>
         ) : null}

@@ -10,12 +10,15 @@ export const maxDuration = 300;
 const MAX_MESSAGE_CHARS = 4_000;
 const MAX_HISTORY_MESSAGES = 40;
 const MAX_HISTORY_CHARS = 12_000;
+const MAX_CONTEXT_TRANSCRIPT_CHARS = 16_000;
 
 interface AgentRequestBody {
   action?: "message" | "confirm" | "reject";
   message?: string;
   videoUrl?: string;
   video?: VideoProposal;
+  /** Text of the transcript currently open, so the agent can answer about the speech. */
+  transcript?: string;
   model?: string;
   history?: { role: "user" | "assistant"; content: string }[];
 }
@@ -57,6 +60,13 @@ export async function POST(request: Request) {
 
   const { message, forceTool, video } = buildInput(body);
   const model = isAllowedModel(body.model) ? body.model : undefined;
+  const context = {
+    videoTitle: typeof body.video?.title === "string" ? body.video.title : undefined,
+    transcriptText:
+      typeof body.transcript === "string" && body.transcript.trim()
+        ? body.transcript.slice(0, MAX_CONTEXT_TRANSCRIPT_CHARS)
+        : undefined,
+  };
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -65,7 +75,7 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
       };
       try {
-        await runAgent({ message, history, forceTool, model, video }, emit);
+        await runAgent({ message, history, forceTool, model, video, context }, emit);
       } catch (error) {
         emit({
           type: "error",

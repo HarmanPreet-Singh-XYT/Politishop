@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ProjectRecord } from "@/lib/projects";
 import { ScoreTable } from "./ScoreTable";
@@ -26,122 +24,96 @@ export function InvestigateArchive({ results }: { results: ProjectRecord[] }) {
   };
 
   return (
-    <main>
-      <header className="relative isolate min-h-[560px] overflow-hidden text-white sm:min-h-[600px]">
-        <Image
-          src="/investigate/hero.jpg"
-          alt="Lowell Lecture Hall, a stone building with tall arched windows"
-          fill
-          priority
-          className="investigate-hero-photo object-cover object-[center_38%]"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,9,7,.9)_0%,rgba(8,9,7,.7)_48%,rgba(8,9,7,.3)_100%)]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25" />
-        <div className="investigate-grain absolute inset-0" />
+    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <header className="pb-8">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          Detection archive
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Speech Trail
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          When AI-written text is read aloud, it can be hard to spot by ear. Every speech you
+          analyze is filed here — the AI reading, the source, and the sentence-level evidence —
+          so one search shows the full result.
+        </p>
 
-        <Link
-          href="/"
-          className="absolute left-5 top-4 z-20 inline-flex items-center gap-1.5 text-[13px] font-medium text-white/75 transition-colors hover:text-white sm:left-8 sm:top-6"
+        <form
+          className="mt-6 w-full max-w-2xl"
+          onSubmit={(event) => {
+            event.preventDefault();
+            applySearch();
+          }}
         >
-          ← Back to app
-        </Link>
-
-        <div className="relative z-10 mx-auto flex min-h-[560px] max-w-6xl flex-col px-5 sm:min-h-[600px] sm:px-8">
-          <div className="flex flex-1 flex-col justify-center py-10 sm:py-12">
-            <p className="investigate-stamp text-[11px] text-white/65">Detection archive</p>
-            <h1 className="investigate-title mt-4 max-w-[8ch] text-6xl">Speech Trail</h1>
-            <p className="mt-5 max-w-xl text-[16px] leading-7 text-white/75 sm:text-[18px]">
-              When AI-written text is read aloud, it can be hard to spot by ear. Every speech you
-              analyze is filed here — the AI reading, the source, and the sentence-level evidence —
-              so one search shows the full result.
-            </p>
-
-            <form
-              className="mt-8 w-full max-w-3xl"
-              onSubmit={(event) => {
-                event.preventDefault();
-                applySearch();
-              }}
+          <div className="flex gap-2">
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Search documents</span>
+              <input
+                name="q"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Search transcripts, titles, or channels"
+                className="h-11 w-full rounded-lg border border-border bg-background/70 px-3 text-sm outline-none focus-visible:border-ring"
+              />
+            </label>
+            <button
+              type="submit"
+              className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
-              <div className="grid gap-px bg-white/25 p-px shadow-[0_16px_50px_rgba(0,0,0,0.3)] sm:grid-cols-[1fr_auto]">
-                <label>
-                  <span className="sr-only">Search documents</span>
-                  <input
-                    name="q"
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder="Search transcripts, titles, or channels"
-                    className="investigate-field h-14 w-full px-4 text-[15px]"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="flex h-14 items-center justify-center gap-2 bg-[var(--blood)] px-6 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--blood-press)] active:bg-[var(--blood-press)]"
-                >
-                  <SearchIcon />
-                  Search
-                </button>
-              </div>
-              <p className="mt-3 text-[12px] leading-5 text-white/55">
-                Try{" "}
-                {EXAMPLES.map((ex, i) => (
-                  <span key={ex}>
-                    {i > 0 && ", "}
-                    <button
-                      type="button"
-                      className="border-b border-white/30 text-white/75 hover:border-white hover:text-white"
-                      onClick={() => {
-                        setDraft(ex);
-                        applySearch(ex);
-                      }}
-                    >
-                      {ex}
-                    </button>
-                  </span>
-                ))}
-              </p>
-            </form>
-
-            <dl className="mt-8 flex w-full max-w-xl flex-wrap gap-x-10 gap-y-4 border-t border-white/25 pt-5">
-              <Stat label="Speeches" value={stats.total} />
-              <Stat label="Scored" value={stats.scored} />
-              <Stat label="Read as AI" value={stats.ai} />
-              <Stat label="Words" value={stats.words} />
-            </dl>
+              <SearchIcon />
+              Search
+            </button>
           </div>
-
-          <p className="absolute bottom-4 right-5 text-[10px] text-white/35 sm:right-8">
-            Lowell Lecture Hall, Harvard · Daderot
+          <p className="mt-2.5 text-xs text-muted-foreground">
+            Try{" "}
+            {EXAMPLES.map((ex, i) => (
+              <span key={ex}>
+                {i > 0 && ", "}
+                <button
+                  type="button"
+                  className="underline underline-offset-2 hover:text-foreground"
+                  onClick={() => {
+                    setDraft(ex);
+                    applySearch(ex);
+                  }}
+                >
+                  {ex}
+                </button>
+              </span>
+            ))}
           </p>
-        </div>
+        </form>
+
+        <dl className="mt-7 flex w-full max-w-xl flex-wrap gap-x-10 gap-y-4 border-t border-border/70 pt-5">
+          <Stat label="Speeches" value={stats.total} />
+          <Stat label="Scored" value={stats.scored} />
+          <Stat label="Read as AI" value={stats.ai} />
+          <Stat label="Words" value={stats.words} />
+        </dl>
       </header>
 
-      <section className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
-        <div id="records" className="scroll-mt-8">
-          <h2 className="investigate-punch text-[clamp(2.2rem,5vw,3.4rem)]">The records</h2>
-          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-[var(--muted-ink)]">
+      <section>
+        <div id="records" className="scroll-mt-20">
+          <h2 className="text-xl font-semibold tracking-tight">The records</h2>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Select a record to inspect its transcript and AI reading.
           </p>
-          <div className="mt-8">
+          <div className="mt-6">
             <ScoreTable data={results} query={query} />
           </div>
         </div>
 
-        <div className="grid gap-4 py-14">
-          <div>
-            <h2 className="investigate-punch mt-3 text-4xl">About the project</h2>
-          </div>
-          <div>
-            <div className="space-y-4 text-[16px] leading-7 text-[var(--muted-ink)]">
-              <p>
-                Every row is a speech you analyzed — the audio was pulled, transcribed, and the
-                words sent to GPTZero. The reading, source, and transcript are filed here.
-              </p>
-              <p>
-                Live microphone detection is never stored. The archive only keeps the source,
-                transcript, and analysis.
-              </p>
-            </div>
+        <div className="py-12">
+          <h2 className="text-xl font-semibold tracking-tight">About the project</h2>
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              Every row is a speech you analyzed — the audio was pulled, transcribed, and the
+              words sent to GPTZero. The reading, source, and transcript are filed here.
+            </p>
+            <p>
+              Live microphone detection is never stored. The archive only keeps the source,
+              transcript, and analysis.
+            </p>
           </div>
         </div>
       </section>
@@ -152,10 +124,10 @@ export function InvestigateArchive({ results }: { results: ProjectRecord[] }) {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <dt className="investigate-stamp text-[10px] text-white/55">{label}</dt>
-      <dd className="mt-1 text-[30px] font-medium tracking-[-0.035em] tabular-nums text-white">
-        {value}
-      </dd>
+      <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="mt-1 text-2xl font-medium tabular-nums tracking-tight">{value}</dd>
     </div>
   );
 }

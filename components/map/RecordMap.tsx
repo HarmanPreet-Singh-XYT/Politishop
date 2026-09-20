@@ -89,14 +89,16 @@ export function RecordMap({ points }: { points: MapPoint[] }) {
   const contestedCount = points.filter((p) => p.contested).length;
 
   return (
-    <main className="pt-14">
-      <div className="mx-auto max-w-[1400px] px-5 pb-16 sm:px-8">
-        <header className="py-9 sm:py-11">
-          <p className="paper-label">The corpus</p>
-          <h1 className="paper-display mt-3.5 text-[clamp(2rem,4vw,3rem)]">
+    <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
+      <div>
+        <header className="pb-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            The corpus
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
             Explore similar records
           </h1>
-          <p className="mt-4 max-w-2xl text-[16px] leading-7 text-[var(--muted-ink)]">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             This map groups records by meaning. Records with similar text are
             close together. Each color shows how much of the text can be
             AI-generated. A ring marks a record when nearby results disagree.
@@ -120,10 +122,10 @@ export function RecordMap({ points }: { points: MapPoint[] }) {
                     })
                   }
                   aria-pressed={on}
-                  className={`press focus-ring rounded-full border px-3 py-1 text-[12px] font-medium ${
+                  className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-full border px-3 py-1 text-[12px] font-medium ${
                     on
-                      ? "border-[var(--line-strong)] bg-[var(--ink)] text-white"
-                      : "border-[var(--line)] text-[var(--muted-ink)]"
+                      ? "border-primary/60 bg-primary text-primary-foreground"
+                      : "border-border/70 text-muted-foreground"
                   }`}
                 >
                   {k === "doc" ? "Documents" : "Speeches"}
@@ -135,10 +137,10 @@ export function RecordMap({ points }: { points: MapPoint[] }) {
               onClick={() => setOnlyContested((v) => !v)}
               aria-pressed={onlyContested}
               disabled={contestedCount === 0}
-              className={`press focus-ring rounded-full border px-3 py-1 text-[12px] font-medium disabled:opacity-40 ${
+              className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-full border px-3 py-1 text-[12px] font-medium disabled:opacity-40 ${
                 onlyContested
-                  ? "border-[var(--line-strong)] bg-[var(--ink)] text-white"
-                  : "border-[var(--line)] text-[var(--muted-ink)]"
+                  ? "border-primary/60 bg-primary text-primary-foreground"
+                  : "border-border/70 text-muted-foreground"
               }`}
             >
               Contested only ({contestedCount})
@@ -170,7 +172,7 @@ export function RecordMap({ points }: { points: MapPoint[] }) {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start">
-          <div className="paper-card relative h-[min(72vh,720px)] overflow-hidden">
+          <div className="glass rounded-2xl border border-border/70 relative h-[min(72vh,720px)] overflow-hidden">
             <ParentSize>
               {({ width, height }) =>
                 width > 0 && height > 0 ? (
@@ -202,7 +204,7 @@ export function RecordMap({ points }: { points: MapPoint[] }) {
                 ) : null
               }
             </ParentSize>
-            <p className="pointer-events-none absolute bottom-3 left-4 text-[11px] text-[var(--faint-ink)]">
+            <p className="pointer-events-none absolute bottom-3 left-4 text-[11px] text-muted-foreground/70">
               {visible.length} of {points.length} records ·{" "}
               {dim === "2d"
                 ? "scroll to zoom, drag to pan"
@@ -237,7 +239,7 @@ function Segmented<T extends string>({
     <div
       role="group"
       aria-label={ariaLabel}
-      className="inline-flex items-center gap-0.5 rounded-full border border-[var(--line)] p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-full border border-border/70 bg-card/50 p-0.5"
     >
       {options.map((o) => {
         const on = o.value === value;
@@ -249,10 +251,10 @@ function Segmented<T extends string>({
             title={o.title}
             aria-pressed={on}
             onClick={() => onChange(o.value)}
-            className={`press focus-ring rounded-full px-2.5 py-[3px] text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-35 ${
+            className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-full px-2.5 py-[3px] text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-35 ${
               on
-                ? "bg-[var(--ink)] text-white"
-                : "text-[var(--muted-ink)] hover:text-[var(--ink)]"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {o.label}
@@ -428,14 +430,14 @@ function FlatLattice({
               cx={0}
               cy={0}
               r={1.4 / k}
-              fill="var(--line-strong)"
+              fill="var(--border)"
               opacity={0.75}
             />
           ) : (
             <path
               d={`M ${step} 0 L 0 0 L 0 ${step}`}
               fill="none"
-              stroke="var(--line)"
+              stroke="var(--border)"
               strokeWidth={1 / k}
             />
           )}
@@ -730,7 +732,7 @@ function DeepLattice({
                 cx={v.sx}
                 cy={v.sy}
                 r={1.9 * ((frame.r * CAM_DIST_R) / v.depth)}
-                fill="var(--line-strong)"
+                fill="var(--border)"
                 opacity={fade(v.depth, 0.85)}
               />
             ))
@@ -751,7 +753,7 @@ function DeepLattice({
                 y1={a.sy}
                 x2={b.sx}
                 y2={b.sy}
-                stroke="var(--line-strong)"
+                stroke="var(--border)"
                 strokeWidth={1}
                 opacity={fade((a.depth + b.depth) / 2, 0.75)}
               />
@@ -806,7 +808,7 @@ function Dot({
         r={r}
         fill={color}
         fillOpacity={selected || hovered ? 1 : 0.82}
-        stroke={selected ? "var(--ink)" : "white"}
+        stroke={selected ? "var(--foreground)" : "var(--background)"}
         strokeWidth={strokeW}
         onMouseEnter={() => onHover(point)}
         onClick={(e) => {
@@ -841,8 +843,8 @@ function HoverCard({
       height={78}
       pointerEvents="none"
     >
-      <div className="rounded-[10px] border border-[var(--line)] bg-white/95 px-3 py-2 shadow-[0_8px_24px_-12px_rgba(17,18,15,0.4)] backdrop-blur-sm">
-        <p className="line-clamp-2 text-[12px] font-medium leading-snug text-[var(--ink)]">
+      <div className="rounded-[10px] border border-border/70 bg-popover/95 px-3 py-2 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+        <p className="line-clamp-2 text-[12px] font-medium leading-snug text-foreground">
           {point.title}
         </p>
         <p
@@ -850,7 +852,7 @@ function HoverCard({
           style={{ color: `var(${bandOf(point.ai).v})` }}
         >
           <span className="font-semibold">{aiPct(point.ai)}% AI</span>
-          <span className="text-[var(--muted-ink)]">
+          <span className="text-muted-foreground">
             {" "}
             · {bandOf(point.ai).label}
           </span>
@@ -862,7 +864,7 @@ function HoverCard({
 
 function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[var(--muted-ink)]">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
       {AI_BANDS.map((b) => (
         <span key={b.label} className="inline-flex items-center gap-1.5">
           <span
@@ -876,7 +878,7 @@ function Legend() {
       <span className="inline-flex items-center gap-1.5">
         <span
           aria-hidden
-          className="size-3 rounded-full border border-[var(--muted-ink)]"
+          className="size-3 rounded-full border border-muted-foreground"
         />
         contested
       </span>
@@ -893,13 +895,13 @@ function DetailPanel({
 }) {
   if (!point) {
     return (
-      <aside className="paper-card p-5">
-        <p className="paper-label">No record selected</p>
-        <p className="mt-3 text-[14px] leading-6 text-[var(--muted-ink)]">
+      <aside className="glass rounded-2xl border border-border/70 p-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">No record selected</p>
+        <p className="mt-3 text-[14px] leading-6 text-muted-foreground">
           Click a dot to read the record, see how machine-written it scored, and
           find the records nearest to it in meaning.
         </p>
-        <p className="mt-4 text-[13px] leading-6 text-[var(--faint-ink)]">
+        <p className="mt-4 text-[13px] leading-6 text-muted-foreground/70">
           Ringed dots sit in a neighbourhood where the readings disagree sharply
           — near-identical text called both human and machine.
         </p>
@@ -908,29 +910,29 @@ function DetailPanel({
   }
 
   return (
-    <aside className="paper-card max-h-[min(72vh,720px)] overflow-y-auto p-5">
+    <aside className="glass rounded-2xl border border-border/70 max-h-[min(72vh,720px)] overflow-y-auto p-5">
       <div className="flex items-start justify-between gap-3">
-        <p className="paper-label">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {point.sourceType === "doc" ? "Document" : "Speech"}
         </p>
         <button
           type="button"
           onClick={onClose}
-          className="focus-ring rounded-[4px] text-[12px] text-[var(--muted-ink)] hover:text-[var(--ink)]"
+          className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-[4px] text-[12px] text-muted-foreground hover:text-foreground"
         >
           Close
         </button>
       </div>
 
-      <h2 className="paper-heading mt-2 text-[17px]">{point.title}</h2>
+      <h2 className="mt-2 text-[17px] font-semibold tracking-tight">{point.title}</h2>
 
       <AiMeter ai={point.ai} className="mt-4" />
 
-      <p className="mt-2 text-[12px] text-[var(--faint-ink)]">
+      <p className="mt-2 text-[12px] text-muted-foreground/70">
         {point.words} words{point.contested && " · contested neighbourhood"}
       </p>
 
-      <p className="mt-4 max-h-40 overflow-y-auto text-[13px] leading-6 text-[var(--muted-ink)]">
+      <p className="mt-4 max-h-40 overflow-y-auto text-[13px] leading-6 text-muted-foreground">
         {point.excerpt}…
       </p>
 
@@ -938,7 +940,7 @@ function DetailPanel({
         href={point.url}
         target="_blank"
         rel="noreferrer"
-        className="focus-ring mt-3 inline-block rounded-[4px] text-[13px] font-medium text-[var(--accent)] underline-offset-2 underline"
+        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 mt-3 inline-block rounded-[4px] text-[13px] font-medium text-primary underline-offset-2 underline"
       >
         Source
       </a>
@@ -970,16 +972,16 @@ function NeighbourList({ id }: { id: string }) {
   }, [id]);
 
   return (
-    <div className="paper-divider mt-5 pt-4">
-      <p className="paper-label">Nearest in meaning</p>
+    <div className="border-t border-border/70 mt-5 pt-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Nearest in meaning</p>
       {error && (
-        <p className="mt-3 text-[12px] text-[var(--stamp-ai)]">{error}</p>
+        <p className="mt-3 text-[12px] text-destructive">{error}</p>
       )}
       {!near && !error && (
-        <p className="mt-3 text-[12px] text-[var(--faint-ink)]">Searching…</p>
+        <p className="mt-3 text-[12px] text-muted-foreground/70">Searching…</p>
       )}
       {near && near.length === 0 && (
-        <p className="mt-3 text-[12px] text-[var(--faint-ink)]">
+        <p className="mt-3 text-[12px] text-muted-foreground/70">
           Nothing else close by.
         </p>
       )}
@@ -995,7 +997,7 @@ function NeighbourList({ id }: { id: string }) {
               <span className="block truncate text-[12px] leading-snug">
                 {n.title}
               </span>
-              <span className="text-[11px] text-[var(--faint-ink)]">
+              <span className="text-[11px] text-muted-foreground/70">
                 {aiPct(n.aiShare)}% AI · {(n.score * 100).toFixed(0)}% match
               </span>
             </span>

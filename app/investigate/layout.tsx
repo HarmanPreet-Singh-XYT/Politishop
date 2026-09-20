@@ -1,12 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Newsreader } from "next/font/google";
-import "./investigate.css";
-
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-newsreader",
-});
+import Link from "next/link";
+import { SubHeader } from "@/components/SubHeader";
 
 export const metadata: Metadata = {
   title: "Investigate — Human on the Podium",
@@ -15,10 +9,28 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#14110d",
+  themeColor: "#0d1114",
   viewportFit: "cover",
 };
 
 export default function InvestigateLayout({ children }: { children: React.ReactNode }) {
-  return <div className={`${newsreader.variable} investigate-root`}>{children}</div>;
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <SubHeader>
+        <Link
+          href="/map"
+          className="hidden underline-offset-4 hover:text-foreground hover:underline sm:inline"
+        >
+          Map ↗
+        </Link>
+        <Link
+          href="/"
+          className="underline-offset-4 hover:text-foreground hover:underline"
+        >
+          ← Back to app
+        </Link>
+      </SubHeader>
+      {children}
+    </div>
+  );
 }

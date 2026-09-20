@@ -1,5 +1,6 @@
 "use client";
 
+import { FolderOpen } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AiMeter } from "@/components/AiMeter";
@@ -9,6 +10,7 @@ import { ClaimPanel } from "@/components/ClaimPanel";
 import { EntityPanel } from "@/components/EntityPanel";
 import { SpeakerPicker } from "@/components/SpeakerPicker";
 import { TranscriptView } from "@/components/TranscriptView";
+import { Button } from "@/components/ui/button";
 import type { StoredClaimSet } from "@/lib/claims-store";
 import type { AiReport } from "@/lib/gptzero";
 import {
@@ -49,6 +51,7 @@ export function AnalyticsPanel({
   primarySpeakerReason,
   showTitle = true,
   view = "advanced",
+  onOpenProject,
 }: {
   video: VideoSummary | null;
   transcript: Transcript;
@@ -60,6 +63,8 @@ export function AnalyticsPanel({
   showTitle?: boolean;
   /** "basic" shows the plain AI-share reading; "advanced" shows the full panel. */
   view?: "basic" | "advanced";
+  /** When set, shows a control that opens the saved project's detail page. */
+  onOpenProject?: () => void;
 }) {
   const speakers = speakerSummaries(transcript);
   // Seed from the auto-pick so we score one scope on mount instead of re-scoring immediately.
@@ -243,6 +248,7 @@ export function AnalyticsPanel({
         report={report}
         loading={loading}
         error={error}
+        showTitle={showTitle}
       />
     );
   }
@@ -263,16 +269,24 @@ export function AnalyticsPanel({
             <p className="mt-0.5 truncate text-xs text-muted-foreground">{video.channel}</p>
           ) : null}
         </div>
-        {sessionId ? (
-          <a
-            className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            href={`https://www.browserbase.com/sessions/${sessionId}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Browser session ↗
-          </a>
-        ) : null}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {onOpenProject ? (
+            <Button variant="secondary" size="sm" className="gap-1.5" onClick={onOpenProject}>
+              <FolderOpen className="size-3.5" />
+              Open project
+            </Button>
+          ) : null}
+          {sessionId ? (
+            <a
+              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              href={`https://www.browserbase.com/sessions/${sessionId}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Browser session ↗
+            </a>
+          ) : null}
+        </div>
       </div>
 
       {video?.videoId ? (
