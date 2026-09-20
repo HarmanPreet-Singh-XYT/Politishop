@@ -96,6 +96,25 @@ CREATE TABLE IF NOT EXISTS ai_reports (
 );
 CREATE INDEX IF NOT EXISTS ai_reports_source_idx ON ai_reports (source);
 CREATE INDEX IF NOT EXISTS ai_reports_updated_at_idx ON ai_reports (updated_at DESC);
+-- Ranking dimensions added after the table shipped.
+ALTER TABLE ai_reports ADD COLUMN IF NOT EXISTS politician text;
+ALTER TABLE ai_reports ADD COLUMN IF NOT EXISTS party text;
+ALTER TABLE ai_reports ADD COLUMN IF NOT EXISTS topic text;
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id         text PRIMARY KEY,
+  kind       text NOT NULL,
+  severity   text NOT NULL,
+  title      text NOT NULL,
+  detail     text NOT NULL,
+  source     text,
+  politician text,
+  party      text,
+  value      double precision,
+  delivered  boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS alerts_created_at_idx ON alerts (created_at DESC);
 `;
 
 // Next.js reloads modules in dev; keep one pool across reloads instead of leaking one per edit.

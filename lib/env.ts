@@ -39,6 +39,18 @@ export const env = {
   hasFred(): boolean {
     return Boolean(process.env.FRED_API_KEY?.trim());
   },
+  /** Optional Slack-compatible incoming webhook for alerts. */
+  get alertWebhookUrl(): string {
+    return process.env.ALERT_WEBHOOK_URL?.trim() ?? "";
+  },
+  hasAlertWebhook(): boolean {
+    return Boolean(process.env.ALERT_WEBHOOK_URL?.trim());
+  },
+  /** AI probability at or above which a scored speech raises an alert. */
+  get alertAiThreshold(): number {
+    const value = Number(process.env.ALERT_AI_THRESHOLD);
+    return Number.isFinite(value) && value > 0 && value <= 1 ? value : 0.8;
+  },
   get openaiModel(): string {
     return process.env.OPENAI_MODEL?.trim() || "gpt-5-mini";
   },
