@@ -61,6 +61,41 @@ CREATE TABLE IF NOT EXISTS live_sessions (
   mixed_count     integer NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS live_sessions_updated_at_idx ON live_sessions (updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS claim_sets (
+  id              text PRIMARY KEY,
+  speaker_id      text,
+  scorable        boolean NOT NULL DEFAULT false,
+  reason          text,
+  word_count      integer NOT NULL DEFAULT 0,
+  checkable_count integer NOT NULL DEFAULT 0,
+  claims          jsonb NOT NULL DEFAULT '[]'::jsonb,
+  verifications   jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS claim_sets_updated_at_idx ON claim_sets (updated_at DESC);
+-- Added after the table shipped, so migrate it in place rather than recreating.
+ALTER TABLE claim_sets ADD COLUMN IF NOT EXISTS reviews jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS ai_reports (
+  id              text PRIMARY KEY,
+  speaker_id      text,
+  source          text NOT NULL,
+  title           text NOT NULL,
+  video_id        text,
+  scorable        boolean NOT NULL DEFAULT false,
+  ai_probability  double precision,
+  flagged_count   integer NOT NULL DEFAULT 0,
+  sentence_count  integer NOT NULL DEFAULT 0,
+  word_count      integer NOT NULL DEFAULT 0,
+  most_ai         jsonb,
+  most_human      jsonb,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ai_reports_source_idx ON ai_reports (source);
+CREATE INDEX IF NOT EXISTS ai_reports_updated_at_idx ON ai_reports (updated_at DESC);
 `;
 
 // Next.js reloads modules in dev; keep one pool across reloads instead of leaking one per edit.

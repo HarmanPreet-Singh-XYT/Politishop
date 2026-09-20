@@ -1,12 +1,14 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AiMeter } from "@/components/AiMeter";
 import { AudioEventsStrip } from "@/components/AudioEventsStrip";
+import { ClaimPanel } from "@/components/ClaimPanel";
 import { EntityPanel } from "@/components/EntityPanel";
 import { SpeakerPicker } from "@/components/SpeakerPicker";
 import { TranscriptView } from "@/components/TranscriptView";
+import type { StoredClaimSet } from "@/lib/claims-store";
 import type { AiReport } from "@/lib/gptzero";
 import {
   audioEvents,
@@ -50,6 +52,23 @@ export function AnalyticsPanel({
   const [error, setError] = useState<string | null>(null);
   const cache = useRef(new Map<string, AiReport>());
   const inflight = useRef(new Map<string, Promise<AiReport>>());
+  const [claimReport, setClaimReport] = useState<StoredClaimSet | null>(null);
+  const [claimsLoading, setClaimsLoading] = useState(false);
+  const [claimsError, setClaimsError] = useState<string | null>(null);
+  const claimsCache = useRef(new Map<string, StoredClaimSet>());
+  const claimsInflight = useRef(new Map<string, Promise<StoredClaimSet>>());
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  /** Drive the YouTube embed through its postMessage API. */
+  const seek = useCallback((seconds: number) => {
+    const frame = iframeRef.current;
+    if (!frame?.contentWindow) return;
+    frame.contentWindow.postMessage(
+      JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
+      "*",
+    );
+    frame.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
 
   // Follow the auto-picked speaker whenever a new transcript arrives.
   useEffect(() => {
@@ -79,7 +98,15 @@ export function AnalyticsPanel({
         const response = await fetch("/api/detect", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transcript, speakerId: selected }),
+          body: JSON.stringify({
+            transcript,
+            speakerId: selected,
+            source: video?.channel?.trim() || video?.title?.trim() || "Unknown source",
+            title: video?.title?.trim() || "Untitled speech",
+            videoId: video?.videoId ?? null,
+            // Record only the speech's own speaker, so one speech counts once on the board.
+            primary: primarySpeaker ? selected === primarySpeaker : selected === null,
+          }),
         });
         const data = (await response.json()) as AiReport & { error?: string };
         if (!response.ok) throw new Error(data.error ?? `Scoring failed (${response.status}).`);
@@ -101,6 +128,59 @@ export function AnalyticsPanel({
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [transcript, selected, primarySpeaker, video?.videoId]);
+
+  // Triage the claims in the current scope. Same cache-per-speaker approach as scoring.
+  useEffect(() => {
+    const key = `${transcript.text.length}:${selected ?? "all"}`;
+    const cached = claimsCache.current.get(key);
+    if (cached) {
+      setClaimReport(cached);
+      setClaimsError(null);
+      setClaimsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setClaimsLoading(true);
+    setClaimsError(null);
+    setClaimReport(null);
+
+    let pending = claimsInflight.current.get(key);
+    if (!pending) {
+      pending = (async () => {
+        const response = await fetch("/api/claims", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript, speakerId: selected }),
+        });
+        const data = (await response.json()) as StoredClaimSet & { error?: string };
+        if (!response.ok) {
+          throw new Error(data.error ?? `Claim extraction failed (${response.status}).`);
+        }
+        claimsCache.current.set(key, data);
+        return data;
+      })();
+      claimsInflight.current.set(key, pending);
+      void pending.catch(() => {}).finally(() => claimsInflight.current.delete(key));
+    }
+
+    pending
+      .then((data) => {
+        if (!cancelled) setClaimReport(data);
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) {
+          setClaimsError(caught instanceof Error ? caught.message : String(caught));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setClaimsLoading(false);
       });
 
     return () => {
@@ -164,8 +244,9 @@ export function AnalyticsPanel({
           className="mx-auto aspect-video max-h-[46vh] w-full max-w-[680px] overflow-hidden rounded-2xl border border-border bg-black"
         >
           <iframe
+            ref={iframeRef}
             className="size-full"
-            src={`https://www.youtube.com/embed/${video.videoId}`}
+            src={`https://www.youtube.com/embed/${video.videoId}?enablejsapi=1`}
             title={video.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -196,6 +277,14 @@ export function AnalyticsPanel({
 
       <AiMeter report={report} loading={loading} error={error} scopedLabel={scopeLabel} />
 
+      <ClaimPanel
+        report={claimReport}
+        loading={claimsLoading}
+        error={claimsError}
+        scopedLabel={scopeLabel}
+        onSeek={video?.videoId ? seek : undefined}
+      />
+
       <EntityPanel transcript={transcript} entities={transcript.entities} />
 
       <div className="glass flex max-h-[52vh] min-h-[220px] flex-col overflow-hidden rounded-2xl border border-border/70">
@@ -216,10 +305,11 @@ export function AnalyticsPanel({
         </p>
         <ul className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
           <li>
-            <span className="text-foreground">Claim check</span>: unsupported and hallucinated claims
+            <span className="text-foreground">Archive</span>: catch contradictions across past
+            speeches (needs a shared speaker identity first)
           </li>
           <li>
-            <span className="text-foreground">Archive</span>: Elastic search across past speeches
+            <span className="text-foreground">Human review</span>: accept or dismiss each match
           </li>
         </ul>
       </div>

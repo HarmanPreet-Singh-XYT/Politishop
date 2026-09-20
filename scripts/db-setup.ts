@@ -150,7 +150,7 @@ async function main(): Promise<void> {
   // Any query bootstraps the schema (CREATE TABLE IF NOT EXISTS …).
   const { rows: before } = await query<{ table_name: string }>(
     `SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name IN ('chats', 'library_runs', 'projects', 'live_sessions')
+      WHERE table_schema = 'public' AND table_name IN ('chats', 'library_runs', 'projects', 'live_sessions', 'claim_sets', 'ai_reports')
       ORDER BY table_name`,
   );
   console.log(`schema ready: ${before.map((row) => row.table_name).join(", ")}`);
@@ -166,6 +166,8 @@ async function main(): Promise<void> {
      UNION ALL SELECT 'library_runs', count(*)::text FROM library_runs
      UNION ALL SELECT 'projects', count(*)::text FROM projects
      UNION ALL SELECT 'live_sessions', count(*)::text FROM live_sessions
+     UNION ALL SELECT 'claim_sets', count(*)::text FROM claim_sets
+     UNION ALL SELECT 'ai_reports', count(*)::text FROM ai_reports
      ORDER BY table_name`,
   );
 

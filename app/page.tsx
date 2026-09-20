@@ -1,12 +1,13 @@
 "use client";
 
-import { PanelLeft, Sparkles } from "lucide-react";
+import { PanelLeft, SlidersHorizontal, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { AudioToolsView } from "@/components/AudioToolsView";
 import { ChatPanel } from "@/components/ChatPanel";
 import { ChatSidebar } from "@/components/ChatSidebar";
+import { LeaderboardView } from "@/components/LeaderboardView";
 import { LibraryView } from "@/components/LibraryView";
 import { LiveView } from "@/components/LiveView";
 import { ProjectsView } from "@/components/ProjectsView";
@@ -87,17 +88,27 @@ export default function Page() {
             <TabsTrigger value="projects" className="px-3">
               Projects
             </TabsTrigger>
-            <TabsTrigger value="audio" className="px-3">
-              <span className="hidden sm:inline">Audio tools</span>
-              <span className="sm:hidden">Audio</span>
+            <TabsTrigger value="leaderboard" className="px-3">
+              Leaderboard
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <div className="hidden items-center justify-end gap-4 text-xs text-muted-foreground sm:flex">
+        <div className="mt-1 flex items-center justify-end gap-3 text-xs text-muted-foreground sm:mt-0">
+          <Button
+            variant={tab === "audio" ? "secondary" : "ghost"}
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setTab("audio")}
+            aria-pressed={tab === "audio"}
+          >
+            <SlidersHorizontal className="size-3.5" />
+            <span className="hidden sm:inline">Audio tools</span>
+            <span className="sm:hidden">Tools</span>
+          </Button>
           {chat.sessionId ? (
             <a
-              className="underline-offset-4 hover:text-foreground hover:underline"
+              className="hidden underline-offset-4 hover:text-foreground hover:underline sm:inline"
               href={`https://www.browserbase.com/sessions/${chat.sessionId}`}
               target="_blank"
               rel="noreferrer"
@@ -224,6 +235,14 @@ export default function Page() {
         className="min-h-0 flex-1 data-[state=inactive]:hidden"
       >
         <ProjectsView focusId={chat.createdProject?.id} />
+      </TabsContent>
+
+      <TabsContent
+        forceMount
+        value="leaderboard"
+        className="min-h-0 flex-1 data-[state=inactive]:hidden"
+      >
+        <LeaderboardView />
       </TabsContent>
 
       <TabsContent

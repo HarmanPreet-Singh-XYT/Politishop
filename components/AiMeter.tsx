@@ -82,9 +82,9 @@ export function AiMeter({
   const percent = probability === null ? null : Math.round(probability * 100);
   const { label, tone } = verdict(probability);
 
-  const worst = [...report.sentences]
-    .filter((sentence) => sentence.generatedProb !== null)
-    .sort((a, b) => (b.generatedProb ?? 0) - (a.generatedProb ?? 0))[0];
+  const scored = report.sentences.filter((sentence) => sentence.generatedProb !== null);
+  const worst = [...scored].sort((a, b) => (b.generatedProb ?? 0) - (a.generatedProb ?? 0))[0];
+  const best = [...scored].sort((a, b) => (a.generatedProb ?? 0) - (b.generatedProb ?? 0))[0];
 
   return (
     <div
@@ -127,14 +127,24 @@ export function AiMeter({
         />
       </div>
 
-      {worst && (worst.generatedProb ?? 0) > 0 ? (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Most AI-like at{" "}
-          <span className="tabular-nums text-foreground">{formatTime(worst.start)}</span> (
-          {Math.round((worst.generatedProb ?? 0) * 100)}%): “{worst.text.slice(0, 120)}
-          {worst.text.length > 120 ? "…" : ""}”
-        </p>
-      ) : null}
+      <div className="flex flex-col gap-1">
+        {worst && (worst.generatedProb ?? 0) > 0 ? (
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <span className="font-medium text-red-300">Most AI-like</span> at{" "}
+            <span className="tabular-nums text-foreground">{formatTime(worst.start)}</span> (
+            {Math.round((worst.generatedProb ?? 0) * 100)}%): “{worst.text.slice(0, 120)}
+            {worst.text.length > 120 ? "…" : ""}”
+          </p>
+        ) : null}
+        {best ? (
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <span className="font-medium text-emerald-300">Most human-like</span> at{" "}
+            <span className="tabular-nums text-foreground">{formatTime(best.start)}</span> (
+            {Math.round((best.generatedProb ?? 0) * 100)}%): “{best.text.slice(0, 120)}
+            {best.text.length > 120 ? "…" : ""}”
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

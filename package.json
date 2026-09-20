@@ -10,6 +10,7 @@
     "start": "next start",
     "cli": "tsx scripts/cli.ts",
     "db:setup": "tsx scripts/db-setup.ts",
+    "eval:claims": "tsx scripts/eval-claims.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
