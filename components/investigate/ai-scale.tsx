@@ -2,22 +2,7 @@
 
 import { AI_BANDS, aiPct, aiShareBand } from "@/lib/ai-bands";
 
-export type Certainty = "low" | "medium" | "high";
-
-export const CERTAINTY: Record<Certainty, { bars: number; word: string; note: string }> = {
-  low: {
-    bars: 1,
-    word: "Low certainty",
-    note: "Low certainty — read this as a hint, not a finding",
-  },
-  medium: { bars: 2, word: "Medium certainty", note: "Medium certainty" },
-  high: { bars: 3, word: "High certainty", note: "High certainty" },
-};
-
-export const CERTAINTY_RANK: Record<Certainty, number> = { low: 0, medium: 1, high: 2 };
-
 export const bandOf = aiShareBand;
-export { aiPct };
 
 /** Text tone that resolves on paper first, then falls back to the dark set. */
 const MUTED = "var(--muted-ink, var(--muted))";
@@ -75,42 +60,6 @@ export function AiMeter({
         />
       </div>
     </div>
-  );
-}
-
-/** Signal bars stand in for the words high / medium / low. */
-export function CertaintyBars({
-  level,
-  className = "",
-  decorative = false,
-}: {
-  level: Certainty;
-  className?: string;
-  decorative?: boolean;
-}) {
-  const { bars, note } = CERTAINTY[level];
-  const a11y = decorative
-    ? { "aria-hidden": true as const }
-    : { role: "img", "aria-label": note };
-
-  return (
-    <span
-      className={`inline-flex items-end gap-[3px] ${className}`}
-      title={decorative ? undefined : note}
-      {...a11y}
-    >
-      {[6, 10, 14].map((h, i) => (
-        <span
-          key={h}
-          className="w-[3px] rounded-[1px]"
-          style={{
-            height: h,
-            background:
-              i < bars ? "var(--ink, var(--color-chalk))" : "var(--line, var(--hairline))",
-          }}
-        />
-      ))}
-    </span>
   );
 }
 

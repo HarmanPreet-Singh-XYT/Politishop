@@ -107,20 +107,27 @@ export interface ChatMessage {
   at: number;
 }
 
+/** YouTube ids are exactly 11 characters from [A-Za-z0-9_-]. */
+const VIDEO_ID_PATTERN = /^[\w-]{11}$/;
+const YOUTUBE_HOST = /(^|\.)(youtube\.com|youtube-nocookie\.com|youtu\.be)$/i;
+
 export function youtubeVideoId(url: string): string | null {
+  let parsed: URL;
   try {
-    const parsed = new URL(url);
-    const paramId = parsed.searchParams.get("v");
-    if (paramId) return paramId;
-    const pathId = parsed.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]+)/)?.[1];
-    if (pathId) return pathId;
-    if (parsed.hostname === "youtu.be") {
-      return parsed.pathname.match(/^\/([\w-]{11})/)?.[1] ?? null;
-    }
-    return null;
+    parsed = new URL(url);
   } catch {
     return null;
   }
+  if (!YOUTUBE_HOST.test(parsed.hostname)) return null;
+
+  const paramId = parsed.searchParams.get("v");
+  if (paramId && VIDEO_ID_PATTERN.test(paramId)) return paramId;
+  const pathId = parsed.pathname.match(/^\/(?:shorts|embed|live|v)\/([\w-]{11})(?:[/?#]|$)/)?.[1];
+  if (pathId) return pathId;
+  if (parsed.hostname === "youtu.be" || parsed.hostname.endsWith(".youtu.be")) {
+    return parsed.pathname.match(/^\/([\w-]{11})(?:[/?#]|$)/)?.[1] ?? null;
+  }
+  return null;
 }
 
 export function toVideoProposal(pick: VideoPick): VideoProposal {
@@ -219,12 +226,6 @@ export type ClassProbs = {
   human: number;
   mixed: number;
 };
-
-/** One sentence of a scored excerpt and its 0..1 AI probability. */
-export interface ExcerptSentence {
-  sentence: string;
-  ai: number;
-}
 
 /** One sentence as GPTZero scored it. */
 export type LiveScoredSentence = {

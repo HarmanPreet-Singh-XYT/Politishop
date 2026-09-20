@@ -1,9 +1,12 @@
 import { env } from "@/lib/env";
+import { upstreamError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 const ELEVENLABS_ISOLATION_URL = "https://api.elevenlabs.io/v1/audio-isolation";
+/** Reject oversized uploads before buffering them into memory and re-posting. */
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 /**
  * Proxy an uploaded clip to ElevenLabs' audio isolation (voice isolator) and stream the
@@ -15,6 +18,12 @@ export async function POST(request: Request) {
 
   if (!(file instanceof File) || file.size === 0) {
     return Response.json({ error: "Attach an audio or video file to isolate." }, { status: 400 });
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return Response.json(
+      { error: "That file is too large (25 MB max)." },
+      { status: 413 },
+    );
   }
 
   const form = new FormData();
@@ -30,7 +39,7 @@ export async function POST(request: Request) {
     if (!response.ok || !response.body) {
       const detail = await response.text().catch(() => "");
       return Response.json(
-        { error: `ElevenLabs isolation failed (${response.status}): ${detail.slice(0, 300)}` },
+        { error: upstreamError("ElevenLabs isolation", response.status, detail).message },
         { status: 502 },
       );
     }

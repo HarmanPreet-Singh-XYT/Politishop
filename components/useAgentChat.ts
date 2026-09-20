@@ -5,6 +5,7 @@ import type { AgentEvent } from "@/lib/events";
 import type { ChatSession } from "@/lib/history";
 import type { ProjectEntry } from "@/lib/projects";
 import type { TranscribeOptions } from "@/lib/transcribe";
+import { parseTimeInput } from "@/lib/time-format";
 import type {
   ChatMessage,
   Transcript,
@@ -22,6 +23,19 @@ function newId(): string {
     globalThis.crypto?.randomUUID?.() ??
     `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   );
+}
+
+/** True when a fetch/stream was aborted because a newer turn replaced it. */
+function isAbort(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { name?: string }).name === "AbortError"
+  );
+}
+
+function formatClock(sec: number): string {
+  return `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
 }
 
 export function useAgentChat() {
@@ -44,9 +58,22 @@ export function useAgentChat() {
     detectEntities: true,
     noVerbatim: false,
   });
+  // Direct-link start time: when on, analyze a 60-second clip from that point.
+  const [startEnabled, setStartEnabled] = useState(false);
+  const [startValue, setStartValue] = useState("0:00");
   const assistantIdRef = useRef<string | null>(null);
+  /** Aborts the in-flight agent stream when a new turn starts or the chat is swapped. */
+  const abortRef = useRef<AbortController | null>(null);
 
   const busy = status === "thinking" || status === "transcribing";
+
+  /** Cancel any in-flight request and return a fresh signal for the one starting now. */
+  function beginRequest(): AbortController {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    return controller;
+  }
 
   // Persist the conversation whenever a turn settles, so it shows up in History.
   useEffect(() => {
@@ -121,10 +148,12 @@ export function useAgentChat() {
   }
 
   async function stream(body: Record<string, unknown>) {
+    const controller = beginRequest();
     const response = await fetch("/api/agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
     if (!response.ok || !response.body) {
       throw new Error(`Agent request failed (${response.status}).`);
@@ -136,6 +165,9 @@ export function useAgentChat() {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      // A newer turn took over: drop the rest of this stream instead of
+      // writing its events into the conversation now on screen.
+      if (controller.signal.aborted) return;
       buffer += decoder.decode(value, { stream: true });
       const frames = buffer.split("\n\n");
       buffer = frames.pop() ?? "";
@@ -148,6 +180,8 @@ export function useAgentChat() {
   }
 
   function fail(error: unknown) {
+    // An abort is an intentional supersede, not a failure worth surfacing.
+    if (isAbort(error)) return;
     const message = error instanceof Error ? error.message : String(error);
     setMessages((prev) => [
       ...prev,
@@ -234,13 +268,16 @@ export function useAgentChat() {
       return;
     }
 
+    const startSec = startEnabled ? parseTimeInput(startValue) : 0;
     beginTurn("user", `Transcribe this link directly: ${trimmed}`);
     setStatus("transcribing");
+    const controller = beginRequest();
     try {
       const response = await fetch("/api/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: trimmed, options: transcribeOptions }),
+        body: JSON.stringify({ url: trimmed, options: transcribeOptions, startSec }),
+        signal: controller.signal,
       });
       const data = (await response.json()) as {
         video?: VideoSummary;
@@ -248,16 +285,27 @@ export function useAgentChat() {
         transcript?: Transcript;
         primarySpeaker?: string | null;
         primarySpeakerReason?: string;
+        project?: ProjectEntry;
         error?: string;
       };
       if (!response.ok || !data.video || !data.stats || !data.transcript) {
         throw new Error(data.error ?? `Transcription failed (${response.status}).`);
       }
+      if (controller.signal.aborted) return;
 
       updateAssistant((message) => ({
         ...message,
-        text: "Transcript ready. It was saved to Saved transcripts.",
-        steps: ["Read the link, no search needed", "Transcribed the audio with ElevenLabs"],
+        text:
+          startSec > 0
+            ? `Transcript ready for the clip from ${formatClock(startSec)} — saved and opened as a project.`
+            : "Transcript ready — saved and opened as a project.",
+        steps:
+          startSec > 0
+            ? [
+                `Cut a 60-second clip at ${formatClock(startSec)}`,
+                "Transcribed the clip with ElevenLabs",
+              ]
+            : ["Read the link, no search needed", "Transcribed the audio with ElevenLabs"],
       }));
       setProposal({
         ...data.video,
@@ -268,6 +316,7 @@ export function useAgentChat() {
       setStats(data.stats);
       setPrimarySpeaker(data.primarySpeaker ?? null);
       setPrimarySpeakerReason(data.primarySpeakerReason ?? null);
+      setCreatedProject(data.project ?? null);
       setStatus("ready");
       setView("split");
     } catch (error) {
@@ -277,6 +326,8 @@ export function useAgentChat() {
 
   /** Replace local state with a stored conversation. */
   function restore(session: ChatSession) {
+    abortRef.current?.abort();
+    abortRef.current = null;
     assistantIdRef.current = null;
     setCreatedProject(null);
     setChatId(session.id);
@@ -296,6 +347,8 @@ export function useAgentChat() {
 
   /** Start a fresh conversation. */
   function startNew() {
+    abortRef.current?.abort();
+    abortRef.current = null;
     assistantIdRef.current = null;
     setCreatedProject(null);
     setChatId(newId());
@@ -330,6 +383,10 @@ export function useAgentChat() {
     createdProject,
     transcribeOptions,
     setTranscribeOptions,
+    startEnabled,
+    setStartEnabled,
+    startValue,
+    setStartValue,
     send,
     createProject,
     reject,

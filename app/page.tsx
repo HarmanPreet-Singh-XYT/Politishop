@@ -74,7 +74,9 @@ export default function Page() {
           >
             <Sparkles className="size-3.5" />
           </span>
-          <span className="truncate text-sm font-medium tracking-tight">Politislop</span>
+          <span className="truncate text-sm font-medium tracking-tight">
+            Human on the Podium
+          </span>
         </div>
 
         {/* Horizontal scroll on phones, centred in the grid cell from sm up. */}
@@ -230,6 +232,10 @@ export default function Page() {
                 mode={chat.mode}
                 onModeChange={chat.setMode}
                 onTranscribeDirect={chat.transcribeDirect}
+                startEnabled={chat.startEnabled}
+                startValue={chat.startValue}
+                onStartEnabledChange={chat.setStartEnabled}
+                onStartValueChange={chat.setStartValue}
               />
             </motion.section>
           </motion.main>

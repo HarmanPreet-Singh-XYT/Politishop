@@ -4,20 +4,37 @@ export function canonicalWatchUrl(videoId: string): string {
   return `https://www.youtube.com/watch?v=${videoId}`;
 }
 
-/** Accept a full YouTube URL or a bare 11-character video id. */
+/** YouTube ids are exactly 11 characters from [A-Za-z0-9_-]. */
+export const VIDEO_ID_PATTERN = /^[\w-]{11}$/;
+const YOUTUBE_HOST = /(^|\.)(youtube\.com|youtube-nocookie\.com|youtu\.be)$/i;
+
+/**
+ * Accept a full YouTube URL or a bare 11-character video id.
+ *
+ * Only YouTube hosts are honoured and the id must be exactly 11 characters. The id is used
+ * to build filesystem paths and to feed yt-dlp, so an arbitrary `?v=` value from some other
+ * host must never pass through — otherwise it becomes an SSRF / path-traversal vector.
+ */
 export function parseVideoId(input: string): string | null {
   const trimmed = input.trim();
+  if (!trimmed) return null;
+  if (VIDEO_ID_PATTERN.test(trimmed)) return trimmed;
+
+  let url: URL;
   try {
-    const url = new URL(trimmed);
-    const paramId = url.searchParams.get("v");
-    if (paramId) return paramId;
-    if (url.hostname === "youtu.be" || url.hostname.endsWith(".youtu.be")) {
-      return url.pathname.match(/^\/([\w-]{11})/)?.[1] ?? null;
-    }
-    return url.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]+)/)?.[1] ?? null;
+    url = new URL(trimmed);
   } catch {
-    return trimmed.match(/^[\w-]{11}$/)?.[0] ?? null;
+    return null;
   }
+  if (!YOUTUBE_HOST.test(url.hostname)) return null;
+
+  const paramId = url.searchParams.get("v");
+  if (paramId && VIDEO_ID_PATTERN.test(paramId)) return paramId;
+
+  if (url.hostname === "youtu.be" || url.hostname.endsWith(".youtu.be")) {
+    return url.pathname.match(/^\/([\w-]{11})(?:[/?#]|$)/)?.[1] ?? null;
+  }
+  return url.pathname.match(/^\/(?:shorts|embed|live|v)\/([\w-]{11})(?:[/?#]|$)/)?.[1] ?? null;
 }
 
 /** Public oEmbed lookup, so a pasted link gets real title/channel/thumbnail without a browser. */

@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AiMeter } from "@/components/AiMeter";
 import { AudioEventsStrip } from "@/components/AudioEventsStrip";
+import { BasicAnalytics } from "@/components/BasicAnalytics";
 import { ClaimPanel } from "@/components/ClaimPanel";
 import { EntityPanel } from "@/components/EntityPanel";
 import { SpeakerPicker } from "@/components/SpeakerPicker";
@@ -26,6 +27,19 @@ function formatDuration(total: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+/**
+ * Cache key for one scope. Includes a hash of the text, not just its length, so two different
+ * transcripts that happen to be the same length never alias each other's report.
+ */
+function scopeKey(transcript: Transcript, selected: string | null): string {
+  const text = transcript.text;
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash * 31 + text.charCodeAt(i)) | 0;
+  }
+  return `${text.length}:${hash}:${selected ?? "all"}`;
+}
+
 export function AnalyticsPanel({
   video,
   transcript,
@@ -34,6 +48,7 @@ export function AnalyticsPanel({
   primarySpeaker,
   primarySpeakerReason,
   showTitle = true,
+  view = "advanced",
 }: {
   video: VideoSummary | null;
   transcript: Transcript;
@@ -43,6 +58,8 @@ export function AnalyticsPanel({
   primarySpeakerReason?: string | null;
   /** False when the caller already shows the video title as a heading. */
   showTitle?: boolean;
+  /** "basic" shows the plain AI-share reading; "advanced" shows the full panel. */
+  view?: "basic" | "advanced";
 }) {
   const speakers = speakerSummaries(transcript);
   // Seed from the auto-pick so we score one scope on mount instead of re-scoring immediately.
@@ -77,7 +94,7 @@ export function AnalyticsPanel({
 
   // Score the current scope with GPTZero, caching per speaker so toggling is free.
   useEffect(() => {
-    const key = `${transcript.text.length}:${selected ?? "all"}`;
+    const key = scopeKey(transcript, selected);
     const cached = cache.current.get(key);
     if (cached) {
       setReport(cached);
@@ -137,7 +154,9 @@ export function AnalyticsPanel({
 
   // Triage the claims in the current scope. Same cache-per-speaker approach as scoring.
   useEffect(() => {
-    const key = `${transcript.text.length}:${selected ?? "all"}`;
+    // Claims are an advanced-panel concern; the plain reading never needs them.
+    if (view !== "advanced") return;
+    const key = scopeKey(transcript, selected);
     const cached = claimsCache.current.get(key);
     if (cached) {
       setClaimReport(cached);
@@ -191,7 +210,7 @@ export function AnalyticsPanel({
     return () => {
       cancelled = true;
     };
-  }, [transcript, selected]);
+  }, [transcript, selected, view]);
 
   const shown = filterTranscriptBySpeaker(transcript, selected);
   const shownStats = selected ? transcriptStats(shown) : stats;
@@ -214,6 +233,19 @@ export function AnalyticsPanel({
     ["Confidence", confidence],
     ["WPM", wordsPerMinute.toLocaleString()],
   ];
+
+  if (view === "basic") {
+    return (
+      <BasicAnalytics
+        video={video}
+        stats={shownStats}
+        transcript={shown}
+        report={report}
+        loading={loading}
+        error={error}
+      />
+    );
+  }
 
   return (
     <div data-testid="analytics-panel" className="flex flex-col gap-5">

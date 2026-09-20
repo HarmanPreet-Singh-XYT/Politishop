@@ -1,29 +1,23 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { ExcerptScore } from "@/lib/excerpts";
-import type { Verdict } from "@/lib/types";
+import type { ProjectRecord } from "@/lib/projects";
 import { ScoreTable } from "./ScoreTable";
 
-const EXAMPLES = ["debate", "parliament", "speech"] as const;
+const EXAMPLES = ["starmer", "trump", "speech"] as const;
 
-type VerdictFilter = "all" | Verdict;
-
-export function InvestigateArchive({ results }: { results: ExcerptScore[] }) {
+export function InvestigateArchive({ results }: { results: ProjectRecord[] }) {
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
-  const [verdict, setVerdict] = useState<VerdictFilter>("all");
 
   const stats = useMemo(() => {
     const total = results.length;
-    const ai = results.filter((r) => r.verdict === "ai").length;
-    const human = results.filter((r) => r.verdict === "human").length;
-    const mixed = results.filter((r) => r.verdict === "mixed").length;
-    const words = results.reduce((n, r) => n + r.words, 0);
-    return { total, ai, human, mixed, words };
+    const scored = results.filter((r) => r.aiProbability !== null);
+    const ai = scored.filter((r) => (r.aiProbability ?? 0) >= 0.5).length;
+    const words = results.reduce((n, r) => n + r.stats.words, 0);
+    return { total, scored: scored.length, ai, words };
   }, [results]);
 
   const applySearch = (next = draft) => {
@@ -49,8 +43,7 @@ export function InvestigateArchive({ results }: { results: ExcerptScore[] }) {
           href="/"
           className="absolute left-5 top-4 z-20 inline-flex items-center gap-1.5 text-[13px] font-medium text-white/75 transition-colors hover:text-white sm:left-8 sm:top-6"
         >
-          <ArrowLeft className="size-4" />
-          Back to app
+          ← Back to app
         </Link>
 
         <div className="relative z-10 mx-auto flex min-h-[560px] max-w-6xl flex-col px-5 sm:min-h-[600px] sm:px-8">
@@ -58,9 +51,9 @@ export function InvestigateArchive({ results }: { results: ExcerptScore[] }) {
             <p className="investigate-stamp text-[11px] text-white/65">Detection archive</p>
             <h1 className="investigate-title mt-4 max-w-[8ch] text-6xl">Speech Trail</h1>
             <p className="mt-5 max-w-xl text-[16px] leading-7 text-white/75 sm:text-[18px]">
-              When AI-written text is read aloud, it can be hard to spot by ear. We transcribe
-              one-minute excerpts from political speeches, analyze them with GPTZero, and bring the
-              verdict and sentence-level evidence together so one search shows the full result.
+              When AI-written text is read aloud, it can be hard to spot by ear. Every speech you
+              analyze is filed here — the AI reading, the source, and the sentence-level evidence —
+              so one search shows the full result.
             </p>
 
             <form
@@ -70,36 +63,16 @@ export function InvestigateArchive({ results }: { results: ExcerptScore[] }) {
                 applySearch();
               }}
             >
-              <div className="grid gap-px bg-white/25 p-px shadow-[0_16px_50px_rgba(0,0,0,0.3)] sm:grid-cols-[1fr_180px_auto]">
+              <div className="grid gap-px bg-white/25 p-px shadow-[0_16px_50px_rgba(0,0,0,0.3)] sm:grid-cols-[1fr_auto]">
                 <label>
                   <span className="sr-only">Search documents</span>
                   <input
                     name="q"
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
-                    placeholder="Search transcripts, titles, or IDs"
+                    placeholder="Search transcripts, titles, or channels"
                     className="investigate-field h-14 w-full px-4 text-[15px]"
                   />
-                </label>
-                <label className="relative">
-                  <span className="sr-only">Filter by verdict</span>
-                  <select
-                    name="verdict"
-                    value={verdict}
-                    onChange={(event) => setVerdict(event.target.value as VerdictFilter)}
-                    className="investigate-field h-14 w-full appearance-none px-4 pr-10 text-[14px]"
-                  >
-                    <option value="all">All recordings</option>
-                    <option value="ai">AI</option>
-                    <option value="human">Human</option>
-                    <option value="mixed">Mixed</option>
-                  </select>
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--faint-ink)]"
-                  >
-                    ▾
-                  </span>
                 </label>
                 <button
                   type="submit"
@@ -130,9 +103,9 @@ export function InvestigateArchive({ results }: { results: ExcerptScore[] }) {
             </form>
 
             <dl className="mt-8 flex w-full max-w-xl flex-wrap gap-x-10 gap-y-4 border-t border-white/25 pt-5">
-              <Stat label="Excerpts" value={stats.total} />
-              <Stat label="AI" value={stats.ai} />
-              <Stat label="Human" value={stats.human} />
+              <Stat label="Speeches" value={stats.total} />
+              <Stat label="Scored" value={stats.scored} />
+              <Stat label="Read as AI" value={stats.ai} />
               <Stat label="Words" value={stats.words} />
             </dl>
           </div>
@@ -147,10 +120,10 @@ export function InvestigateArchive({ results }: { results: ExcerptScore[] }) {
         <div id="records" className="scroll-mt-8">
           <h2 className="investigate-punch text-[clamp(2.2rem,5vw,3.4rem)]">The records</h2>
           <p className="mt-3 max-w-2xl text-[15px] leading-6 text-[var(--muted-ink)]">
-            Select a record to inspect its transcript and sentence-level AI probability.
+            Select a record to inspect its transcript and AI reading.
           </p>
           <div className="mt-8">
-            <ScoreTable data={results} query={query} verdict={verdict} />
+            <ScoreTable data={results} query={query} />
           </div>
         </div>
 
@@ -161,13 +134,12 @@ export function InvestigateArchive({ results }: { results: ExcerptScore[] }) {
           <div>
             <div className="space-y-4 text-[16px] leading-7 text-[var(--muted-ink)]">
               <p>
-                Every row is a sixty-second excerpt from a speech. We pull the audio, transcribe it,
-                and send the words to GPTZero. The verdict, class split, and sentence heat are filed
-                here.
+                Every row is a speech you analyzed — the audio was pulled, transcribed, and the
+                words sent to GPTZero. The reading, source, and transcript are filed here.
               </p>
               <p>
-                Live microphone detection is never stored. The archive only keeps the source URL,
-                start time, transcript, and analysis.
+                Live microphone detection is never stored. The archive only keeps the source,
+                transcript, and analysis.
               </p>
             </div>
           </div>

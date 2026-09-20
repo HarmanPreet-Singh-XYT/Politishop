@@ -2,13 +2,39 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { MAX_CLIP_JOBS } from "./constants";
 import { env } from "./env";
-import { parseCpacId, parseYoutubeId } from "./recording-id";
+import { canonicalWatchUrl, parseCpacId, parseYoutubeId } from "./recording-id";
 
 export { parseCpacId, parseYoutubeId };
 
 const SEGMENT_SEC = 60;
 const TMP = path.join(process.cwd(), "data", "tmp");
+/** Longest a single yt-dlp / ffmpeg invocation may run before it is killed. */
+const RUN_TIMEOUT_MS = 150_000;
+/** Cap on captured stdout/stderr, so a chatty source cannot grow the process unbounded. */
+const MAX_OUTPUT_CHARS = 100_000;
+
+/**
+ * A process-wide cap on simultaneous clip extractions. `MAX_CLIP_JOBS` is enforced client
+ * side too, but the endpoint is public, so the server must hold the line as well.
+ */
+let activeClipJobs = 0;
+const clipJobWaiters: Array<() => void> = [];
+
+async function acquireClipSlot(): Promise<void> {
+  if (activeClipJobs < MAX_CLIP_JOBS) {
+    activeClipJobs += 1;
+    return;
+  }
+  await new Promise<void>((resolve) => clipJobWaiters.push(resolve));
+  activeClipJobs += 1;
+}
+
+function releaseClipSlot(): void {
+  activeClipJobs = Math.max(0, activeClipJobs - 1);
+  clipJobWaiters.shift()?.();
+}
 
 function ytDlpBin(): string {
   const fromEnv = env.ytDlpPath;
@@ -26,6 +52,7 @@ function ytDlpBaseArgs(): string[] {
 function run(
   cmd: string,
   args: string[],
+  timeoutMs = RUN_TIMEOUT_MS,
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     // Drop inherited HTTP(S)_PROXY — sandbox/corporate proxies 403 YouTube.
@@ -44,14 +71,35 @@ function run(
     const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"], env: envVars });
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+
+    const append = (current: string, chunk: Buffer) =>
+      current.length >= MAX_OUTPUT_CHARS
+        ? current
+        : current + chunk.toString().slice(0, MAX_OUTPUT_CHARS - current.length);
+
+    // A hung download or a source that never finishes must not pin the request forever.
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGKILL");
+    }, timeoutMs);
+
     child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString();
+      stdout = append(stdout, chunk);
     });
     child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
+      stderr = append(stderr, chunk);
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
     child.on("close", (code) => {
+      clearTimeout(timer);
+      if (timedOut) {
+        reject(new Error(`${cmd} timed out after ${Math.round(timeoutMs / 1000)}s`));
+        return;
+      }
       if (code === 0) {
         resolve({ stdout, stderr });
         return;
@@ -143,6 +191,8 @@ export async function fetchYoutubeMeta(url: string): Promise<SourceMeta> {
   const videoId = parseYoutubeId(url);
   if (!videoId) throw new Error("Not a valid YouTube URL");
 
+  // Always hand yt-dlp our own canonical URL, never the caller's raw string.
+  const watchUrl = canonicalWatchUrl(videoId);
   const meta = await run(ytDlpBin(), [
     ...ytDlpBaseArgs(),
     "--print",
@@ -152,7 +202,7 @@ export async function fetchYoutubeMeta(url: string): Promise<SourceMeta> {
     "--print",
     "%(duration)s",
     "--skip-download",
-    url,
+    watchUrl,
   ]);
   // Read the fixed fields off the end: a title can in principle wrap lines,
   // the two that follow it cannot.
@@ -219,61 +269,69 @@ export async function extractMinuteClip(url: string, startSec = 0): Promise<Extr
     throw new Error("startSec must be >= 0");
   }
 
-  fs.mkdirSync(TMP, { recursive: true });
-  const endSec = startSec + SEGMENT_SEC;
-  const outBase = path.join(TMP, `${videoId}-${startSec}-${randomUUID()}`);
-  const outPath = `${outBase}.mp3`;
+  await acquireClipSlot();
+  try {
+    fs.mkdirSync(TMP, { recursive: true });
+    const endSec = startSec + SEGMENT_SEC;
+    // `videoId` is a validated 11-character id, but build the path from it explicitly so no
+    // caller-controlled string can reach the filesystem.
+    const outBase = path.join(TMP, `${videoId}-${Math.floor(startSec)}-${randomUUID()}`);
+    const outPath = `${outBase}.mp3`;
+    const watchUrl = canonicalWatchUrl(videoId);
 
-  const { title, publishedAt, sourceDurationSec } = await fetchYoutubeMeta(url);
+    const { title, publishedAt, sourceDurationSec } = await fetchYoutubeMeta(watchUrl);
 
-  assertStartInRange(startSec, sourceDurationSec);
+    assertStartInRange(startSec, sourceDurationSec);
 
-  // Prefer HLS audio (234/233). Progressive https (140/251) often 403s now.
-  await run(ytDlpBin(), [
-    ...ytDlpBaseArgs(),
-    "-f",
-    "234/233/bestaudio",
-    "--download-sections",
-    `*${startSec}-${endSec}`,
-    "--force-keyframes-at-cuts",
-    "-o",
-    `${outBase}.%(ext)s`,
-    url,
-  ]);
-
-  const siblings = fs
-    .readdirSync(TMP)
-    .filter((file) => file.startsWith(path.basename(outBase)));
-  const raw = siblings[0];
-  if (!raw) throw new Error("yt-dlp produced no audio file");
-  const rawPath = path.join(TMP, raw);
-
-  let audioPath = rawPath;
-  if (!raw.endsWith(".mp3")) {
-    await run("ffmpeg", [
-      "-y",
-      "-i",
-      rawPath,
-      "-vn",
-      "-acodec",
-      "libmp3lame",
-      "-q:a",
-      "5",
-      outPath,
+    // Prefer HLS audio (234/233). Progressive https (140/251) often 403s now.
+    await run(ytDlpBin(), [
+      ...ytDlpBaseArgs(),
+      "-f",
+      "234/233/bestaudio",
+      "--download-sections",
+      `*${startSec}-${endSec}`,
+      "--force-keyframes-at-cuts",
+      "-o",
+      `${outBase}.%(ext)s`,
+      watchUrl,
     ]);
-    cleanupClip(rawPath);
-    audioPath = outPath;
-  }
 
-  return {
-    audioPath,
-    videoId,
-    title,
-    startSec,
-    durationSec: clipLength(startSec, sourceDurationSec),
-    publishedAt,
-    sourceDurationSec,
-  };
+    const siblings = fs
+      .readdirSync(TMP)
+      .filter((file) => file.startsWith(path.basename(outBase)));
+    const raw = siblings[0];
+    if (!raw) throw new Error("yt-dlp produced no audio file");
+    const rawPath = path.join(TMP, raw);
+
+    let audioPath = rawPath;
+    if (!raw.endsWith(".mp3")) {
+      await run("ffmpeg", [
+        "-y",
+        "-i",
+        rawPath,
+        "-vn",
+        "-acodec",
+        "libmp3lame",
+        "-q:a",
+        "5",
+        outPath,
+      ]);
+      cleanupClip(rawPath);
+      audioPath = outPath;
+    }
+
+    return {
+      audioPath,
+      videoId,
+      title,
+      startSec,
+      durationSec: clipLength(startSec, sourceDurationSec),
+      publishedAt,
+      sourceDurationSec,
+    };
+  } finally {
+    releaseClipSlot();
+  }
 }
 
 /** Pull a 60s audio clip from a CPAC episode page (HLS + ffmpeg). */
@@ -287,55 +345,60 @@ export async function extractCpacMinuteClip(
     throw new Error("startSec must be >= 0");
   }
 
-  const { html, meta } = await fetchCpacPage(url);
-  const { title, publishedAt, sourceDurationSec } = meta;
-  const master = html.match(/https?:\/\/[^"'<\s]+\.m3u8[^"'<\s]*/)?.[0];
-  if (!master) throw new Error("No CPAC stream on that page");
+  await acquireClipSlot();
+  try {
+    const { html, meta } = await fetchCpacPage(url);
+    const { title, publishedAt, sourceDurationSec } = meta;
+    const master = html.match(/https?:\/\/[^"'<\s]+\.m3u8[^"'<\s]*/)?.[0];
+    if (!master) throw new Error("No CPAC stream on that page");
 
-  assertStartInRange(startSec, sourceDurationSec);
+    assertStartInRange(startSec, sourceDurationSec);
 
-  const playlistRes = await fetch(master, {
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      Referer: "https://www.cpac.ca/",
-    },
-  });
-  if (!playlistRes.ok) throw new Error(`CPAC playlist ${playlistRes.status}`);
-  const playlist = await playlistRes.text();
-  const audioRel = playlist.match(/TYPE=AUDIO[^\n]*URI="([^"]+)"/)?.[1];
-  const audioUrl = audioRel ? new URL(audioRel, master).href : master;
+    const playlistRes = await fetch(master, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Referer: "https://www.cpac.ca/",
+      },
+    });
+    if (!playlistRes.ok) throw new Error(`CPAC playlist ${playlistRes.status}`);
+    const playlist = await playlistRes.text();
+    const audioRel = playlist.match(/TYPE=AUDIO[^\n]*URI="([^"]+)"/)?.[1];
+    const audioUrl = audioRel ? new URL(audioRel, master).href : master;
 
-  fs.mkdirSync(TMP, { recursive: true });
-  const outPath = path.join(TMP, `${videoId}-${startSec}-${randomUUID()}.mp3`);
-  await run("ffmpeg", [
-    "-y",
-    "-user_agent",
-    "Mozilla/5.0",
-    "-referer",
-    "https://www.cpac.ca/",
-    "-ss",
-    String(startSec),
-    "-t",
-    String(SEGMENT_SEC),
-    "-i",
-    audioUrl,
-    "-vn",
-    "-acodec",
-    "libmp3lame",
-    "-q:a",
-    "5",
-    outPath,
-  ]);
+    fs.mkdirSync(TMP, { recursive: true });
+    const outPath = path.join(TMP, `${videoId}-${Math.floor(startSec)}-${randomUUID()}.mp3`);
+    await run("ffmpeg", [
+      "-y",
+      "-user_agent",
+      "Mozilla/5.0",
+      "-referer",
+      "https://www.cpac.ca/",
+      "-ss",
+      String(startSec),
+      "-t",
+      String(SEGMENT_SEC),
+      "-i",
+      audioUrl,
+      "-vn",
+      "-acodec",
+      "libmp3lame",
+      "-q:a",
+      "5",
+      outPath,
+    ]);
 
-  return {
-    audioPath: outPath,
-    videoId,
-    title,
-    startSec,
-    durationSec: clipLength(startSec, sourceDurationSec),
-    publishedAt,
-    sourceDurationSec,
-  };
+    return {
+      audioPath: outPath,
+      videoId,
+      title,
+      startSec,
+      durationSec: clipLength(startSec, sourceDurationSec),
+      publishedAt,
+      sourceDurationSec,
+    };
+  } finally {
+    releaseClipSlot();
+  }
 }
 
 export function cleanupClip(audioPath: string) {

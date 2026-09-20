@@ -17,3 +17,15 @@ export function formatDuration(sec: number) {
   const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
   return `${h > 0 ? `${h}:` : ""}${mm}:${String(s).padStart(2, "0")}`;
 }
+
+/**
+ * Parse a start-time field. Accepts plain seconds ("90"), "M:SS" ("1:30") and "H:MM:SS"
+ * ("1:02:03"). Anything unparseable becomes 0 rather than NaN.
+ */
+export function parseTimeInput(raw: string): number {
+  const text = raw.trim();
+  if (!text) return 0;
+  const parts = text.split(":").map((part) => Number(part.trim()));
+  if (parts.length === 0 || parts.some((n) => !Number.isFinite(n) || n < 0)) return 0;
+  return Math.max(0, Math.floor(parts.reduce((total, n) => total * 60 + n, 0)));
+}

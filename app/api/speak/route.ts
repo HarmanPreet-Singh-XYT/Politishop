@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { upstreamError } from "@/lib/errors";
 import { stripTags } from "@/lib/roast";
 import { DEFAULT_VOICE_ID, TTS_MODEL_ID, VOICES } from "@/lib/voices";
 
@@ -46,7 +47,7 @@ async function synthesize(voiceId: string, text: string): Promise<ArrayBuffer> {
   );
 
   if (!res.ok) {
-    throw new Error(`ElevenLabs TTS ${res.status}: ${await res.text()}`);
+    throw upstreamError("ElevenLabs TTS", res.status, await res.text());
   }
 
   const audio = await res.arrayBuffer();

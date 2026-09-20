@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Politislop — find & transcribe",
+  title: "Human on the Podium",
   description:
-    "Chat with an agent that finds a political speech on YouTube and transcribes it.",
+    "Find a political speech, transcribe it, and see how much of it reads as machine-written.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

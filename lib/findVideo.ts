@@ -106,7 +106,7 @@ export async function findBestVideo(
             url: canonicalYoutubeUrl(candidate.url),
           })),
         },
-        sessionId: browser.sessionId!,
+        sessionId: browser.sessionId ?? "",
       };
     } finally {
       await stagehand.close();

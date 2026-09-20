@@ -41,16 +41,26 @@ function CodeBlockCode({
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
     async function highlight() {
       if (!code) {
-        setHighlightedHtml("<pre><code></code></pre>")
+        if (!cancelled) setHighlightedHtml("<pre><code></code></pre>")
         return
       }
 
-      const html = await codeToHtml(code, { lang: language, theme })
-      setHighlightedHtml(html)
+      // An unknown language (or a shiki failure) must not become an unhandled rejection;
+      // fall back to the plain <pre> above.
+      try {
+        const html = await codeToHtml(code, { lang: language, theme })
+        if (!cancelled) setHighlightedHtml(html)
+      } catch {
+        if (!cancelled) setHighlightedHtml(null)
+      }
     }
     highlight()
+    return () => {
+      cancelled = true
+    }
   }, [code, language, theme])
 
   const classNames = cn(

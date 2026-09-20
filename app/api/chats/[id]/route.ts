@@ -2,6 +2,9 @@ import { getChat, saveChat } from "@/lib/history";
 
 export const runtime = "nodejs";
 
+/** A chat blob is a conversation plus (optionally) a full transcript; cap what we accept. */
+const MAX_BODY_BYTES = 25 * 1024 * 1024;
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -23,6 +26,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+    return Response.json({ error: "That conversation is too large to save." }, { status: 413 });
+  }
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const summary = await saveChat({

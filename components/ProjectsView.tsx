@@ -2,13 +2,29 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { ArrowLeft, Check, Clock3, FileText, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Clock3,
+  FileText,
+  PanelLeft,
+  Pencil,
+  RefreshCw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { Button } from "@/components/ui/button";
+import { ProjectRail } from "@/components/ProjectRail";
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 import type { ProjectEntry, ProjectItem } from "@/lib/projects";
+
+const SPRING = { type: "spring" as const, stiffness: 150, damping: 24 };
+const RAIL_WIDTH = 320;
+const WIDE_QUERY = "(min-width: 1024px)";
 
 function formatDuration(total: number): string {
   const minutes = Math.floor(total / 60);
@@ -66,14 +82,21 @@ export function ProjectsView({
   }, []);
 
   useEffect(() => {
-    if (focusId) void open(focusId);
-  }, [focusId, open]);
+    // A freshly created project (direct link or agent) arrives via focusId; the list was
+    // loaded before it existed, so refresh it too or it would be missing from "All projects".
+    if (!focusId) return;
+    void load();
+    void open(focusId);
+  }, [focusId, open, load]);
 
   if (selected) {
     return (
       <ProjectWorkspace
         project={selected}
-        onBack={() => setSelected(null)}
+        onBack={() => {
+          setSelected(null);
+          void load();
+        }}
         onRenamed={(project) => {
           setSelected(project);
           void load();
@@ -82,6 +105,7 @@ export function ProjectsView({
           setSelected(null);
           void load();
         }}
+        onOpenProject={(id) => void open(id)}
       />
     );
   }
@@ -191,16 +215,31 @@ function ProjectWorkspace({
   onBack,
   onRenamed,
   onDeleted,
+  onOpenProject,
 }: {
   project: ProjectEntry;
   onBack: () => void;
   onRenamed: (project: ProjectEntry) => void;
   onDeleted: () => void;
+  onOpenProject: (id: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(project.name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"basic" | "advanced">("basic");
+  const [railOpen, setRailOpen] = useState(false);
+  // The rail docks beside the panel on wide screens and stacks above it on narrow ones, so it
+  // animates width when side-by-side and height when stacked.
+  const [wide, setWide] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_QUERY);
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   async function save() {
     const name = draft.trim();
@@ -242,7 +281,7 @@ function ProjectWorkspace({
 
   return (
       <div className="scroll-quiet h-full overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
-      <div className="mx-auto w-full max-w-5xl">
+      <div className="mx-auto w-full max-w-6xl">
         <Button
           variant="ghost"
           size="sm"
@@ -254,7 +293,7 @@ function ProjectWorkspace({
         </Button>
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          {editing ? (
+            {editing ? (
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <input
                 value={draft}
@@ -319,7 +358,7 @@ function ProjectWorkspace({
             <Trash2 className="size-3.5" />
             Delete
           </Button>
-        </div>
+          </div>
 
         {error ? (
           <p className="mb-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-foreground">
@@ -327,13 +366,70 @@ function ProjectWorkspace({
           </p>
         ) : null}
 
-        <AnalyticsPanel
-          video={project.video}
-          transcript={project.transcript}
-          stats={project.stats}
-          sessionId={null}
-          showTitle={false}
-        />
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+          <AnimatePresence initial={false}>
+            {railOpen ? (
+              <motion.div
+                key="analysis-rail"
+                initial={wide ? { width: 0, opacity: 0 } : { height: 0, opacity: 0 }}
+                animate={wide ? { width: RAIL_WIDTH, opacity: 1 } : { height: "auto", opacity: 1 }}
+                exit={wide ? { width: 0, opacity: 0 } : { height: 0, opacity: 0 }}
+                transition={SPRING}
+                className="shrink-0 overflow-hidden"
+              >
+                <ProjectRail
+                  onHide={() => setRailOpen(false)}
+                  onSelectProject={onOpenProject}
+                  activeId={project.id}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          <div className="min-w-0 flex-1">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-full border border-border/70 bg-card/50 p-0.5">
+                  {(["basic", "advanced"] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-pressed={view === option}
+                      onClick={() => setView(option)}
+                      className={cn(
+                        "rounded-full px-3.5 py-1.5 text-[12px] font-medium transition-colors",
+                        view === option
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {option === "advanced" ? "Advanced" : "Basic"}
+                    </button>
+                  ))}
+                </div>
+
+              {!railOpen ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setRailOpen(true)}
+                >
+                  <PanelLeft className="size-4" />
+                  Analysis
+                </Button>
+              ) : null}
+            </div>
+
+            <AnalyticsPanel
+              video={project.video}
+              transcript={project.transcript}
+              stats={project.stats}
+              sessionId={null}
+              showTitle={false}
+              view={view}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

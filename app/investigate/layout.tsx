@@ -9,7 +9,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Investigate — Politislop",
+  title: "Investigate — Human on the Podium",
   description:
     "Search analyzed excerpts from political speeches: verdicts, transcripts, and sentence-level evidence.",
 };

@@ -6,6 +6,11 @@ import type { VideoProposal } from "@/lib/types";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+/** Keeps a single request from carrying an unbounded prompt into the model. */
+const MAX_MESSAGE_CHARS = 4_000;
+const MAX_HISTORY_MESSAGES = 40;
+const MAX_HISTORY_CHARS = 12_000;
+
 interface AgentRequestBody {
   action?: "message" | "confirm" | "reject";
   message?: string;
@@ -33,14 +38,21 @@ export async function POST(request: Request) {
   if (body.action === "confirm" && typeof body.videoUrl !== "string") {
     return Response.json({ error: "A video URL is required to confirm." }, { status: 400 });
   }
+  if (typeof body.message === "string" && body.message.length > MAX_MESSAGE_CHARS) {
+    return Response.json({ error: "That message is too long." }, { status: 413 });
+  }
 
+  // Cap history both in count and per-message length before it reaches the model.
   const history = Array.isArray(body.history)
-    ? body.history.filter(
-        (item): item is { role: "user" | "assistant"; content: string } =>
-          Boolean(item) &&
-          (item.role === "user" || item.role === "assistant") &&
-          typeof item.content === "string",
-      )
+    ? body.history
+        .filter(
+          (item): item is { role: "user" | "assistant"; content: string } =>
+            Boolean(item) &&
+            (item.role === "user" || item.role === "assistant") &&
+            typeof item.content === "string",
+        )
+        .slice(-MAX_HISTORY_MESSAGES)
+        .map((item) => ({ ...item, content: item.content.slice(0, MAX_HISTORY_CHARS) }))
     : undefined;
 
   const { message, forceTool, video } = buildInput(body);

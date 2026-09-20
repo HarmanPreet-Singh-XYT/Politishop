@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { upstreamError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     if (!response.ok || !response.body) {
       const detail = await response.text().catch(() => "");
       return Response.json(
-        { error: `ElevenLabs sound effect failed (${response.status}): ${detail.slice(0, 300)}` },
+        { error: upstreamError("ElevenLabs sound effect", response.status, detail).message },
         { status: 502 },
       );
     }

@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { upstreamError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
     if (!created.ok) {
       const detail = await created.text();
       return Response.json(
-        { error: `ElevenLabs dubbing failed (${created.status}): ${detail.slice(0, 300)}` },
+        { error: upstreamError("ElevenLabs dubbing", created.status, detail).message },
         { status: 502 },
       );
     }
@@ -145,7 +146,7 @@ export async function GET(request: Request) {
     if (!projectResponse.ok) {
       const detail = await projectResponse.text();
       return Response.json(
-        { error: `Dubbing status failed (${projectResponse.status}): ${detail.slice(0, 300)}` },
+        { error: upstreamError("Dubbing status", projectResponse.status, detail).message },
         { status: 502 },
       );
     }
@@ -170,7 +171,7 @@ export async function GET(request: Request) {
     if (!languageResponse.ok) {
       const detail = await languageResponse.text();
       return Response.json(
-        { error: `Dubbing status failed (${languageResponse.status}): ${detail.slice(0, 300)}` },
+        { error: upstreamError("Dubbing status", languageResponse.status, detail).message },
         { status: 502 },
       );
     }

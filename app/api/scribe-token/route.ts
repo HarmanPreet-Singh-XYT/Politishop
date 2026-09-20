@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { upstreamError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -16,7 +17,7 @@ export async function POST() {
     if (!res.ok) {
       const detail = await res.text();
       return Response.json(
-        { error: `ElevenLabs token request failed (${res.status})`, detail },
+        { error: upstreamError("ElevenLabs token request", res.status, detail).message },
         { status: 502 },
       );
     }

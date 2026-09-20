@@ -14,24 +14,10 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Fragment, useMemo, useState } from "react";
-import { SENTENCE_HUMAN_MAX } from "@/lib/constants";
-import type { ExcerptScore } from "@/lib/excerpts";
+import type { ProjectRecord } from "@/lib/projects";
 import { formatDay, formatDuration } from "@/lib/time-format";
-import {
-  AiMeter,
-  bandOf,
-  BandLegend,
-  CERTAINTY,
-  CERTAINTY_RANK,
-  CertaintyBars,
-} from "./ai-scale";
-import { formatClock, formatWhen, pct, sourceAt } from "./format";
-
-const STAMP: Record<ExcerptScore["verdict"], { bg: string; fg: string }> = {
-  ai: { bg: "var(--stamp-ai)", fg: "#fff" },
-  human: { bg: "var(--stamp-human)", fg: "#fff" },
-  mixed: { bg: "var(--stamp-mixed)", fg: "#14110d" },
-};
+import { AiMeter, bandOf, BandLegend } from "./ai-scale";
+import { formatWhen, pct, sourceAt } from "./format";
 
 /** Fixed widths keep columns from re-flowing when a row expands. */
 const COLUMN_WIDTH: Record<string, string> = {
@@ -39,27 +25,22 @@ const COLUMN_WIDTH: Record<string, string> = {
   createdAt: "118px",
   title: "auto",
   aiShare: "168px",
-  confidence: "80px",
   words: "64px",
   source: "88px",
 };
 
-const archiveFilter: FilterFn<ExcerptScore> = (row, _id, value) => {
+const archiveFilter: FilterFn<ProjectRecord> = (row, _id, value) => {
   const q = String(value ?? "")
     .trim()
     .toLowerCase();
   if (!q) return true;
   const r = row.original;
   const hay = [
-    r.title,
+    r.name,
     r.transcript,
-    r.videoId,
-    r.url,
-    r.verdict,
-    r.confidence,
-    bandOf(r.probs.ai).label,
-    r.publishedAt !== null ? formatDay(r.publishedAt) : null,
-    ...r.sentences.map((s) => s.sentence),
+    r.video.channel,
+    r.video.videoId,
+    r.aiProbability !== null ? bandOf(r.aiProbability).label : null,
   ]
     .filter(Boolean)
     .join(" ")
@@ -67,36 +48,19 @@ const archiveFilter: FilterFn<ExcerptScore> = (row, _id, value) => {
   return hay.includes(q);
 };
 
-const columnHelper = createColumnHelper<ExcerptScore>();
-
-function VerdictStamp({ verdict }: { verdict: ExcerptScore["verdict"] }) {
-  const s = STAMP[verdict];
-  return (
-    <span
-      className="inline-block rounded-sm px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em]"
-      style={{ background: s.bg, color: s.fg }}
-    >
-      {verdict}
-    </span>
-  );
-}
+const columnHelper = createColumnHelper<ProjectRecord>();
 
 export function ScoreTable({
   data,
   query,
-  verdict,
 }: {
-  data: ExcerptScore[];
+  data: ProjectRecord[];
   query: string;
-  verdict: "all" | ExcerptScore["verdict"];
 }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
   const [expanded, setExpanded] = useState<ExpandedState>({});
 
-  const columnFilters = useMemo<ColumnFiltersState>(
-    () => (verdict === "all" ? [] : [{ id: "verdict", value: verdict }]),
-    [verdict],
-  );
+  const columnFilters = useMemo<ColumnFiltersState>(() => [], []);
 
   const columns = useMemo(
     () => [
@@ -114,61 +78,47 @@ export function ScoreTable({
         ),
       }),
       columnHelper.accessor("createdAt", {
-        header: "Analyzed",
+        header: "Created",
         cell: (info) => (
           <span className="tabular-nums text-[13px] text-[var(--muted-ink)]">
             {formatWhen(Date.parse(info.getValue()))}
           </span>
         ),
       }),
-      columnHelper.accessor((r) => r.title ?? r.videoId, {
+      columnHelper.accessor((r) => r.name, {
         id: "title",
-        header: "Recording",
+        header: "Speech",
         cell: ({ row }) => (
           <div className="min-w-0">
             <p className="line-clamp-2 break-words text-[15px] font-medium leading-snug">
-              {row.original.title ?? row.original.videoId}
+              {row.original.name}
             </p>
-            {row.original.publishedAt !== null ? (
-              <p className="truncate text-[11px] text-[var(--faint-ink)]">
-                Recorded {formatDay(row.original.publishedAt)}
-                {row.original.sourceDurationSec !== null &&
-                  ` · ${formatDuration(row.original.sourceDurationSec)}`}
-              </p>
-            ) : (
-              <p className="truncate font-mono text-[11px] text-[var(--faint-ink)]">
-                {row.original.videoId}
-              </p>
-            )}
+            <p className="truncate text-[11px] text-[var(--faint-ink)]">
+              {row.original.video.channel || row.original.video.videoId}
+              {` · ${formatDuration(row.original.stats.duration)}`}
+            </p>
           </div>
         ),
       }),
-      // Kept only so the hero's verdict dropdown still has something to filter.
-      columnHelper.accessor("verdict", {
-        id: "verdict",
-        filterFn: (row, _id, value) => row.original.verdict === value,
-      }),
-      columnHelper.accessor((r) => r.probs.ai, {
+      columnHelper.accessor((r) => r.aiProbability ?? -1, {
         id: "aiShare",
         header: "AI-ness",
-        cell: ({ row }) => <AiMeter ai={row.original.probs.ai} className="w-full" />,
+        cell: ({ row }) =>
+          row.original.aiProbability === null ? (
+            <span className="text-[13px] text-[var(--faint-ink)]">Not scored</span>
+          ) : (
+            <AiMeter ai={row.original.aiProbability} className="w-full" />
+          ),
       }),
-      columnHelper.accessor("confidence", {
-        header: "Certainty",
-        cell: (info) => <CertaintyBars level={info.getValue()} />,
-        sortingFn: (a, b) =>
-          CERTAINTY_RANK[a.original.confidence] - CERTAINTY_RANK[b.original.confidence],
-      }),
-      columnHelper.accessor("words", {
+      columnHelper.accessor((r) => r.stats.words, {
+        id: "words",
         header: "Words",
         cell: (info) => <span className="tabular-nums text-[13px]">{info.getValue()}</span>,
       }),
       columnHelper.display({
         id: "source",
         header: "Source",
-        cell: ({ row }) => (
-          <SourceLink url={row.original.url} startSec={row.original.startSec} />
-        ),
+        cell: ({ row }) => <SourceLink url={row.original.video.url} startSec={0} />,
       }),
     ],
     [],
@@ -177,13 +127,7 @@ export function ScoreTable({
   const table = useReactTable({
     data,
     columns,
-    state: {
-      sorting,
-      expanded,
-      globalFilter: query,
-      columnFilters,
-      columnVisibility: { verdict: false },
-    },
+    state: { sorting, expanded, globalFilter: query, columnFilters },
     onSortingChange: setSorting,
     onExpandedChange: setExpanded,
     getRowCanExpand: () => true,
@@ -218,7 +162,7 @@ export function ScoreTable({
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <p className="text-[13px] text-[var(--muted-ink)]">
           {rows.length} record{rows.length === 1 ? "" : "s"}
-          {query.trim() || verdict !== "all" ? " after the filter" : " on file"}
+          {query.trim() ? " after the filter" : " on file"}
         </p>
         <BandLegend />
       </div>
@@ -234,22 +178,20 @@ export function ScoreTable({
                 onClick={row.getToggleExpandedHandler()}
                 className="flex w-full flex-col gap-2.5 px-4 py-3.5 text-left active:bg-[var(--paper)]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 text-[16px] font-medium leading-snug">
-                    {r.title ?? r.videoId}
-                  </p>
-                  <CertaintyBars level={r.confidence} />
-                </div>
-                <AiMeter ai={r.probs.ai} className="w-full max-w-[220px]" />
+                <p className="min-w-0 text-[16px] font-medium leading-snug">{r.name}</p>
+                {r.aiProbability !== null ? (
+                  <AiMeter ai={r.aiProbability} className="w-full max-w-[220px]" />
+                ) : (
+                  <span className="text-[13px] text-[var(--faint-ink)]">Not scored</span>
+                )}
                 <p className="text-[13px] text-[var(--muted-ink)]">
-                  {formatWhen(Date.parse(r.createdAt))} · @{formatClock(r.startSec)} · {r.words}{" "}
-                  words
+                  {formatWhen(Date.parse(r.createdAt))} · {r.stats.words} words
                 </p>
               </button>
               <div className="px-4 pb-3">
-                <SourceLink url={r.url} startSec={r.startSec} />
+                <SourceLink url={r.video.url} startSec={0} />
               </div>
-              {open && <RecordDetail row={r} />}
+              {open && <RecordDetail record={r} />}
             </li>
           );
         })}
@@ -310,7 +252,7 @@ export function ScoreTable({
                 {row.getIsExpanded() && (
                   <tr className="border-b border-[var(--line)]">
                     <td colSpan={row.getVisibleCells().length} className="p-0">
-                      <RecordDetail row={row.original} />
+                      <RecordDetail record={row.original} />
                     </td>
                   </tr>
                 )}
@@ -355,42 +297,29 @@ function ExternalIcon() {
   );
 }
 
-function RecordDetail({ row }: { row: ExcerptScore }) {
+function RecordDetail({ record }: { record: ProjectRecord }) {
   return (
     <div className="grid gap-5 bg-[var(--paper)]/70 px-4 py-4 sm:px-5">
       <div className="flex flex-wrap items-center gap-3">
-        <VerdictStamp verdict={row.verdict} />
-        <p className="text-[13px] text-[var(--muted-ink)]">
-          AI {pct(row.probs.ai)}% · mixed {pct(row.probs.mixed)}% · human {pct(row.probs.human)}%
-        </p>
-        <span className="flex items-center gap-1.5 text-[13px] text-[var(--muted-ink)]">
-          <CertaintyBars level={row.confidence} decorative />
-          {CERTAINTY[row.confidence].note}
-        </span>
+        {record.aiProbability !== null ? (
+          <p className="text-[13px] text-[var(--muted-ink)]">
+            {pct(record.aiProbability)}% AI · {record.flaggedCount} of {record.sentenceCount}{" "}
+            sentences flagged · {record.stats.words.toLocaleString()} words
+          </p>
+        ) : (
+          <p className="text-[13px] text-[var(--muted-ink)]">
+            Not scored yet — open the project to run the AI-o-meter.
+          </p>
+        )}
+        {record.video.channel ? (
+          <span className="text-[13px] text-[var(--faint-ink)]">{record.video.channel}</span>
+        ) : null}
       </div>
 
       <div>
-        <p className="investigate-stamp mb-2 text-[10px] text-[var(--faint-ink)]">
-          Transcript · hover highlights for confidence
-        </p>
-        <p className="max-h-64 overflow-y-auto text-[16px] leading-relaxed">
-          {row.sentences.length > 0
-            ? row.sentences.map((sentence, index) => (
-                <span
-                  key={`${index}-${sentence.sentence.slice(0, 24)}`}
-                  title={`${pct(sentence.ai)}% AI`}
-                  className="mr-[0.25em] box-decoration-clone px-0.5"
-                  style={{
-                    background:
-                      sentence.ai >= SENTENCE_HUMAN_MAX
-                        ? "rgba(216, 59, 29, 0.22)"
-                        : "rgba(38, 115, 70, 0.2)",
-                  }}
-                >
-                  {sentence.sentence}
-                </span>
-              ))
-            : row.transcript}
+        <p className="investigate-stamp mb-2 text-[10px] text-[var(--faint-ink)]">Transcript</p>
+        <p className="max-h-64 overflow-y-auto whitespace-pre-wrap text-[15px] leading-relaxed">
+          {record.transcript || "No transcript on file."}
         </p>
       </div>
     </div>

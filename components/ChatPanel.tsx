@@ -27,6 +27,7 @@ import {
 import { PromptSuggestion } from "@/components/ui/prompt-suggestion";
 import { ScrollButton } from "@/components/ui/scroll-button";
 import { ToolMenu, type ComposerMode } from "@/components/ToolMenu";
+import { StartTimeControl } from "@/components/StartTimeControl";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, VideoProposal as VideoProposalType } from "@/lib/types";
 import { VideoProposal } from "@/components/VideoProposal";
@@ -72,6 +73,10 @@ interface ChatPanelProps {
   mode: ComposerMode;
   onModeChange: (mode: ComposerMode) => void;
   onTranscribeDirect: (url: string) => void;
+  startEnabled: boolean;
+  startValue: string;
+  onStartEnabledChange: (enabled: boolean) => void;
+  onStartValueChange: (value: string) => void;
 }
 
 export function ChatPanel(props: ChatPanelProps) {
@@ -99,6 +104,10 @@ export function ChatPanel(props: ChatPanelProps) {
       onInputChange={setInput}
       onSubmit={submit}
       onModeChange={props.onModeChange}
+      startEnabled={props.startEnabled}
+      startValue={props.startValue}
+      onStartEnabledChange={props.onStartEnabledChange}
+      onStartValueChange={props.onStartValueChange}
       autoFocus={messages.length === 0}
     />
   );
@@ -183,6 +192,10 @@ function Composer({
   onInputChange,
   onSubmit,
   onModeChange,
+  startEnabled,
+  startValue,
+  onStartEnabledChange,
+  onStartValueChange,
   autoFocus,
 }: {
   status: Status;
@@ -192,6 +205,10 @@ function Composer({
   onInputChange: (value: string) => void;
   onSubmit: () => void;
   onModeChange: (mode: ComposerMode) => void;
+  startEnabled: boolean;
+  startValue: string;
+  onStartEnabledChange: (enabled: boolean) => void;
+  onStartValueChange: (value: string) => void;
   autoFocus?: boolean;
 }) {
   const placeholder =
@@ -219,7 +236,16 @@ function Composer({
           className="min-h-[62px] px-2 text-[14.5px] leading-relaxed dark:bg-transparent"
         />
         <PromptInputActions className="justify-between px-0.5 pt-1">
-          <ToolMenu value={mode} onChange={onModeChange} disabled={busy} />
+          <div className="flex items-center gap-1.5">
+            <ToolMenu value={mode} onChange={onModeChange} disabled={busy} />
+            <StartTimeControl
+              enabled={startEnabled}
+              onEnabledChange={onStartEnabledChange}
+              value={startValue}
+              onValueChange={onStartValueChange}
+              disabled={busy}
+            />
+          </div>
 
           <PromptInputAction tooltip="Send" side="top">
             <Button

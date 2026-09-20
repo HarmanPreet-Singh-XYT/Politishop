@@ -13,6 +13,7 @@ export function parseYoutubeId(url: string): string | null {
 export function parseCpacId(url: string): string | null {
   try {
     const parsed = new URL(url.trim());
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
     if (!/(^|\.)cpac\.ca$/i.test(parsed.hostname)) return null;
     const id = parsed.searchParams.get("id");
     return id && CPAC_ID.test(id) ? id : null;

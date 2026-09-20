@@ -1,5 +1,6 @@
 import { isThin } from "./chunker";
 import { env } from "./env";
+import { upstreamError } from "./errors";
 import type { ClassProbs, Detection, LiveScoredSentence, Verdict } from "./types";
 
 const ENDPOINT = "https://api.gptzero.me/v2/predict/text";
@@ -81,7 +82,7 @@ export async function scoreChunk(
   });
 
   if (!res.ok) {
-    throw new Error(`GPTZero ${res.status}: ${await res.text()}`);
+    throw upstreamError("GPTZero", res.status, await res.text());
   }
 
   const json = (await res.json()) as { documents?: RawDocument[] };

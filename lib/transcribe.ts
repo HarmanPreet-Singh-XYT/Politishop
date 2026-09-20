@@ -1,4 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
 import { env } from "./env";
+import { upstreamError } from "./errors";
 import type { Transcript, TranscriptEntity, TranscriptWord } from "./types";
 import { fetchYoutubeDurationSeconds, parseVideoId } from "./youtube";
 
@@ -77,7 +80,7 @@ export async function transcribeYoutube(
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`ElevenLabs transcription failed (${response.status}): ${detail}`);
+    throw upstreamError("ElevenLabs transcription", response.status, detail);
   }
 
   const transcript = toTranscript((await response.json()) as ElevenLabsResponse);
@@ -149,4 +152,47 @@ async function assertCoversVideo(youtubeUrl: string, transcript: Transcript): Pr
         `is ${Math.round(expected)}s long.`,
     );
   }
+}
+
+/**
+ * Transcribe a local audio file — a clipped excerpt — with word timings, so it can be treated
+ * like any other transcript. No truncation guard: a 60s clip is compared against nothing.
+ */
+export async function transcribeAudioFile(
+  audioPath: string,
+  options: TranscribeOptions = {},
+): Promise<Transcript> {
+  const detectEntities = options.detectEntities ?? DEFAULT_TRANSCRIBE_OPTIONS.detectEntities;
+  const buffer = fs.readFileSync(audioPath);
+
+  const form = new FormData();
+  form.set("model_id", MODEL_ID);
+  form.set(
+    "file",
+    new Blob([new Uint8Array(buffer)], { type: "audio/mpeg" }),
+    path.basename(audioPath),
+  );
+  form.set("timestamps_granularity", "word");
+  form.set("diarize", "true");
+  form.set("tag_audio_events", "true");
+  if (detectEntities) form.set("entity_detection", "all");
+  if (options.numSpeakers) form.set("num_speakers", String(options.numSpeakers));
+  if (options.noVerbatim) form.set("no_verbatim", "true");
+  for (const term of options.keyterms ?? []) {
+    const trimmed = term.trim();
+    if (trimmed) form.append("keyterms", trimmed);
+  }
+
+  const response = await fetch(ELEVENLABS_STT_URL, {
+    method: "POST",
+    headers: { "xi-api-key": env.elevenLabsApiKey },
+    body: form,
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw upstreamError("ElevenLabs transcription", response.status, detail);
+  }
+
+  return toTranscript((await response.json()) as ElevenLabsResponse);
 }
