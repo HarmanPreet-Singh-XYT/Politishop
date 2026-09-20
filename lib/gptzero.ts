@@ -1,5 +1,12 @@
 import { env } from "./env";
-import { UNKNOWN_SPEAKER, type Transcript, type TranscriptWord } from "./types";
+import {
+  UNKNOWN_SPEAKER,
+  type ClassProbs,
+  type ExcerptSentence,
+  type Transcript,
+  type TranscriptWord,
+  type Verdict,
+} from "./types";
 
 const GPTZERO_URL = "https://api.gptzero.me/v2/predict/text";
 
@@ -199,5 +206,110 @@ export async function scoreTranscript(
       mixedProb: first.class_probabilities?.mixed ?? null,
     },
     sentences: scored,
+  };
+}
+
+export interface ExcerptDetection {
+  verdict: Verdict;
+  probability: number;
+  probs: ClassProbs;
+  confidence: "high" | "medium" | "low";
+  subclass?: string;
+  sentences: ExcerptSentence[];
+  words: number;
+}
+
+function verdictOf(raw: string | undefined): Verdict {
+  return raw === "ai" || raw === "mixed" ? raw : "human";
+}
+
+function confidenceOf(raw: string | undefined): "high" | "medium" | "low" {
+  return raw === "high" || raw === "low" ? raw : "medium";
+}
+
+/** Highest-weighted numeric entry of GPTZero's subclass object, if it is an object. */
+function subclassOf(raw: unknown): string | undefined {
+  if (typeof raw === "string") return raw;
+  if (raw && typeof raw === "object") {
+    const entries = Object.entries(raw as Record<string, unknown>).filter(
+      (entry): entry is [string, number] => typeof entry[1] === "number",
+    );
+    entries.sort((a, b) => b[1] - a[1]);
+    return entries[0]?.[0];
+  }
+  return undefined;
+}
+
+type RawExcerptDocument = {
+  predicted_class?: string;
+  class_probabilities?: { ai?: number; human?: number; mixed?: number };
+  completely_generated_prob?: number;
+  confidence_category?: string;
+  subclass?: unknown;
+  sentences?: Array<{
+    sentence?: string;
+    generated_prob?: number;
+    class_probabilities?: { ai?: number };
+  }>;
+};
+
+function probsOf(doc: RawExcerptDocument, verdict: Verdict): ClassProbs {
+  const probs = doc.class_probabilities;
+  if (
+    probs &&
+    (typeof probs.ai === "number" ||
+      typeof probs.human === "number" ||
+      typeof probs.mixed === "number")
+  ) {
+    return { ai: probs.ai ?? 0, human: probs.human ?? 0, mixed: probs.mixed ?? 0 };
+  }
+  const generated = doc.completely_generated_prob ?? 0;
+  if (verdict === "ai") return { ai: generated, human: Math.max(0, 1 - generated), mixed: 0 };
+  if (verdict === "mixed") {
+    const rest = Math.max(0, 1 - generated) / 2;
+    return { ai: rest, human: rest, mixed: generated };
+  }
+  return { ai: Math.max(0, 1 - generated), human: generated, mixed: 0 };
+}
+
+/**
+ * Score a plain-text transcript (a finished excerpt) as a single GPTZero document.
+ * Unlike `scoreTranscript`, no word timings are needed — the clip is transcribed to text.
+ */
+export async function scoreExcerpt(text: string): Promise<ExcerptDetection> {
+  const response = await fetch(GPTZERO_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "x-api-key": env.gptzeroApiKey,
+    },
+    body: JSON.stringify({ document: text, multilingual: false }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`GPTZero failed (${response.status}): ${detail.slice(0, 300)}`);
+  }
+
+  const payload = (await response.json()) as { documents?: RawExcerptDocument[] };
+  const first = payload.documents?.[0];
+  if (!first) throw new Error("GPTZero returned no document.");
+
+  const verdict = verdictOf(first.predicted_class);
+  const probs = probsOf(first, verdict);
+  const probability = probs[verdict] || first.completely_generated_prob || 0;
+
+  return {
+    verdict,
+    probability,
+    probs,
+    confidence: confidenceOf(first.confidence_category),
+    subclass: subclassOf(first.subclass),
+    sentences: (first.sentences ?? []).map((sentence) => ({
+      sentence: sentence.sentence ?? "",
+      ai: sentence.class_probabilities?.ai ?? sentence.generated_prob ?? 0,
+    })),
+    words: text.trim().split(/\s+/).filter(Boolean).length,
   };
 }

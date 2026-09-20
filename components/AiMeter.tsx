@@ -2,14 +2,13 @@
 
 import { motion } from "motion/react";
 import { Loader } from "@/components/ui/loader";
+import { aiShareBand, aiTone } from "@/lib/ai-bands";
 import { cn } from "@/lib/utils";
 import type { AiReport } from "@/lib/gptzero";
 
 function verdict(prob: number | null): { label: string; tone: "ai" | "mixed" | "human" } {
   if (prob === null) return { label: "Not scored", tone: "human" };
-  if (prob >= 0.8) return { label: "Very likely AI-written", tone: "ai" };
-  if (prob >= 0.5) return { label: "Mixed or uncertain", tone: "mixed" };
-  return { label: "Likely human-written", tone: "human" };
+  return { label: aiShareBand(prob).label, tone: aiTone(prob) };
 }
 
 function formatTime(seconds: number): string {

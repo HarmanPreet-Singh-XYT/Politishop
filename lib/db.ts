@@ -118,6 +118,27 @@ CREATE TABLE IF NOT EXISTS alerts (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS alerts_created_at_idx ON alerts (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS excerpts (
+  id                  text PRIMARY KEY,
+  url                 text NOT NULL,
+  source_type         text NOT NULL DEFAULT 'video',
+  video_id            text NOT NULL,
+  title               text,
+  start_sec           integer NOT NULL,
+  duration_sec        integer NOT NULL,
+  published_at        bigint,
+  source_duration_sec integer,
+  transcript          text NOT NULL,
+  verdict             text NOT NULL,
+  probability         double precision NOT NULL,
+  probs               jsonb NOT NULL DEFAULT '{}'::jsonb,
+  confidence          text NOT NULL,
+  sentences           jsonb NOT NULL DEFAULT '[]'::jsonb,
+  words               integer NOT NULL DEFAULT 0,
+  created_at          timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS excerpts_created_at_idx ON excerpts (created_at DESC);
 `;
 
 // Next.js reloads modules in dev; keep one pool across reloads instead of leaking one per edit.

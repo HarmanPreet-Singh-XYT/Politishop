@@ -220,6 +220,12 @@ export type ClassProbs = {
   mixed: number;
 };
 
+/** One sentence of a scored excerpt and its 0..1 AI probability. */
+export interface ExcerptSentence {
+  sentence: string;
+  ai: number;
+}
+
 /** One sentence as GPTZero scored it. */
 export type LiveScoredSentence = {
   sentence: string;

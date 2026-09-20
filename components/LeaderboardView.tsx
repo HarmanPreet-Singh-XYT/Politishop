@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
+import { aiTone } from "@/lib/ai-bands";
 import type { Alert } from "@/lib/alerts";
 import type { ReviewStats } from "@/lib/claims-store";
 import type {
@@ -45,12 +46,16 @@ function relativeTime(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+const TONE = {
+  ai: { text: "text-red-300", bar: "bg-red-400" },
+  mixed: { text: "text-amber-300", bar: "bg-amber-400" },
+  human: { text: "text-emerald-300", bar: "bg-emerald-400" },
+} as const;
+
 /** Same bands as the AI-o-meter, so the board reads consistently with the panels. */
 function tone(probability: number | null) {
   if (probability === null) return { text: "text-muted-foreground", bar: "bg-muted-foreground/40" };
-  if (probability >= 0.8) return { text: "text-red-300", bar: "bg-red-400" };
-  if (probability >= 0.5) return { text: "text-amber-300", bar: "bg-amber-400" };
-  return { text: "text-emerald-300", bar: "bg-emerald-400" };
+  return TONE[aiTone(probability)];
 }
 
 export function LeaderboardView() {

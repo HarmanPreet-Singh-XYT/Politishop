@@ -54,4 +54,8 @@ export const env = {
   get openaiModel(): string {
     return process.env.OPENAI_MODEL?.trim() || "gpt-5-mini";
   },
+  /** Optional path to a yt-dlp binary; falls back to ./bin/yt-dlp then PATH. */
+  get ytDlpPath(): string {
+    return process.env.YT_DLP_PATH?.trim() ?? "";
+  },
 };

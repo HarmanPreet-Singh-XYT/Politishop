@@ -7,20 +7,9 @@ import { useCallback, useEffect, useState } from "react";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
+import { formatDay, formatDuration } from "@/lib/time-format";
 import { cn } from "@/lib/utils";
 import type { LibraryEntry, LibraryItem } from "@/lib/library";
-
-function formatDuration(total: number): string {
-  const minutes = Math.floor(total / 60);
-  const seconds = Math.round(total % 60);
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-function formatDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime()) || date.getTime() === 0) return "";
-  return date.toLocaleDateString([], { month: "short", day: "numeric" });
-}
 
 export function LibraryView({ onBack }: { onBack?: () => void }) {
   const [items, setItems] = useState<LibraryItem[] | null>(null);
@@ -159,7 +148,7 @@ export function LibraryView({ onBack }: { onBack?: () => void }) {
                         {item.video.title}
                       </span>
                       <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                        {formatDate(item.createdAt)}
+                        {formatDay(Date.parse(item.createdAt))}
                       </span>
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">

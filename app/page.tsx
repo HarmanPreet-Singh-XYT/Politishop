@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PanelLeft, SlidersHorizontal, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -106,6 +107,12 @@ export default function Page() {
             <span className="hidden sm:inline">Audio tools</span>
             <span className="sm:hidden">Tools</span>
           </Button>
+          <Link
+            href="/investigate"
+            className="hidden underline-offset-4 hover:text-foreground hover:underline sm:inline"
+          >
+            Investigate ↗
+          </Link>
           {chat.sessionId ? (
             <a
               className="hidden underline-offset-4 hover:text-foreground hover:underline sm:inline"

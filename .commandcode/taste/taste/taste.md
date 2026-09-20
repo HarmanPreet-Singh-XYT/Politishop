@@ -9,6 +9,7 @@
 - Rejects generic "AI-made" default styling; when given a reference design/screenshot, expects the UI to be restyled to match it closely rather than shipping the framework/library default look. Confidence: 0.8
 - Prefers a dark theme for the app (after an initial light pass, explicitly asked to "make it dark theme" with a tinted deep palette and translucent glass surfaces that let the animated background read through). Confidence: 0.6
 - Prefers top-level horizontal navigation tabs in the header over a sidebar layout for multi-section apps. Confidence: 0.55
+- Wants distinct features to live on their own page/route rather than being folded into an existing tab shell — when a ported feature has a conceptually separate surface (e.g. an archive/investigate view), expects a standalone route with its own page, not another tab in the main app. Confidence: 0.5
 - Wants scope discipline: when a feature is out of scope, build only the structural separation (e.g. distinct tabs/sections) with an honest placeholder, rather than implementing the unrequested functionality. Confidence: 0.5
 - Prefers full-bleed, unboxed layouts (content and composer float directly on the background, bolt.new-style) and dislikes wrapping the chat surface in bordered/glass container cards. Confidence: 0.6
 - Dislikes purple/violet in the UI palette — wants accent and chrome colors shifted off purple (chose teal/steel) while reserving green/amber/red for state only. Confidence: 0.7
@@ -56,4 +57,7 @@ cn theme. Confidence: 0.55
 - Prioritizes closing the agent's own admitted loose ends (features it flagged as half-finished) over starting new scope — hands back the self-reported gaps and expects them finished. Confidence: 0.5
 - Periodically audits the build against the original brief/sponsor track list, expecting a coverage map of what's already covered vs. still pending (including unused tracks) rather than a generic feature-status summary. Confidence: 0.45
 - Prioritizes remaining work by impact on the outcome and asks to close the highest-value gaps first ("let's add what's hurting us") rather than working through a backlog in arbitrary order. Confidence: 0.45
+- When comparing two versions/forks of a project, wants the analysis framed as superset-or-divergence: explicitly state whether the newer one fully replaces the older or whether the older retains unique capabilities the newer dropped, rather than treating the new one as a straightforward advance. Confidence: 0.45
+- When porting a page/feature from a reference project, expects the reference's full page structure AND design mirrored faithfully — same layout, sections, hero, and components — rather than an adapted/simplified version that only borrows the styling. Confidence: 0.55
+- Expects navigation affordances to survive a port: when the reference relied on shared app-level chrome the new repo lacks, substitute an equivalent (an explicit back/return link) instead of silently dropping it — notices and calls out missing wayfinding with terse pushback ("wheres back btn"). Confidence: 0.5
 "let's add what's hurting us") rather than working through a backlog in arbitrary order. Confidence: 0.45
