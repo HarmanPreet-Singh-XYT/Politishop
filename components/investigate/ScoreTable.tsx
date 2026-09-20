@@ -16,7 +16,7 @@ import {
 import { Fragment, useMemo, useState } from "react";
 import type { ProjectRecord } from "@/lib/projects";
 import { formatDay, formatDuration } from "@/lib/time-format";
-import { AiMeter, bandOf, BandLegend } from "./ai-scale";
+import { AiMeter, bandOf, BandLegend } from "@/components/ai-scale";
 import { formatWhen, pct, sourceAt } from "./format";
 
 /** Fixed widths keep columns from re-flowing when a row expands. */

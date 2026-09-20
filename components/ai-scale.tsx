@@ -2,6 +2,8 @@
 
 import { AI_BANDS, aiPct, aiShareBand } from "@/lib/ai-bands";
 
+export { AI_BANDS, aiPct };
+
 export const bandOf = aiShareBand;
 
 /** Text tone that resolves on paper first, then falls back to the dark set. */

@@ -12,6 +12,7 @@
     "db:setup": "tsx scripts/db-setup.ts",
     "eval:claims": "tsx scripts/eval-claims.ts",
     "backfill:reports": "tsx scripts/backfill-reports.ts",
+    "db:import-records": "tsx scripts/import-sloppy.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -19,6 +20,9 @@
     "@designcodeio/threeui": "^1.2.0",
     "@rive-app/react-webgl2": "^4.34.3",
     "@tanstack/react-table": "^8.21.3",
+    "@visx/responsive": "^4.0.0",
+    "@visx/scale": "^4.0.0",
+    "@visx/zoom": "^4.0.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "dotenv": "^16.4.5",

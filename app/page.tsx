@@ -115,6 +115,12 @@ export default function Page() {
           >
             Investigate ↗
           </Link>
+          <Link
+            href="/map"
+            className="hidden underline-offset-4 hover:text-foreground hover:underline sm:inline"
+          >
+            Map ↗
+          </Link>
           {chat.sessionId ? (
             <a
               className="hidden underline-offset-4 hover:text-foreground hover:underline sm:inline"
