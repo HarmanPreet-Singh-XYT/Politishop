@@ -49,6 +49,19 @@ function normalizeParty(value: unknown): string | null {
   return "Other";
 }
 
+/** Clean a set of labels, whether they came from the model or a person editing them. */
+export function normalizeMeta(input: {
+  politician?: unknown;
+  party?: unknown;
+  topic?: unknown;
+}): SpeechMeta {
+  return {
+    politician: text(input.politician),
+    party: normalizeParty(input.party),
+    topic: text(input.topic)?.toLowerCase() ?? null,
+  };
+}
+
 export async function deriveSpeechMeta(input: {
   title: string;
   channel: string;
@@ -70,11 +83,7 @@ export async function deriveSpeechMeta(input: {
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = MetaSchema.parse(JSON.parse(raw));
-    return {
-      politician: text(parsed.politician),
-      party: normalizeParty(parsed.party),
-      topic: text(parsed.topic)?.toLowerCase() ?? null,
-    };
+    return normalizeMeta(parsed);
   } catch {
     return EMPTY_META;
   }

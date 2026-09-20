@@ -15,6 +15,9 @@ export interface StoredClaimSet extends ClaimReport {
   verifications: Record<string, ClaimVerification>;
   /** claimId -> a human's ruling on the automated result. */
   reviews: Record<string, ClaimReview>;
+  /** The speech this sheet came from, so alerts can name it. */
+  source: string | null;
+  title: string | null;
   cached: boolean;
 }
 
@@ -35,6 +38,8 @@ type ClaimSetRow = {
   claims: ClaimReport["claims"];
   verifications: Record<string, ClaimVerification>;
   reviews: Record<string, ClaimReview>;
+  source: string | null;
+  title: string | null;
 };
 
 /** Claim-set ids are truncated sha256 digests. */
@@ -61,6 +66,8 @@ async function getStored(id: string): Promise<StoredClaimSet | null> {
     claims: row.claims ?? [],
     verifications: row.verifications ?? {},
     reviews: row.reviews ?? {},
+    source: row.source,
+    title: row.title,
     cached: true,
   };
 }
@@ -68,11 +75,13 @@ async function getStored(id: string): Promise<StoredClaimSet | null> {
 export async function getOrExtractClaims(
   transcript: Parameters<typeof extractClaims>[0],
   speakerId: string | null,
-  force = false,
+  options: { force?: boolean; source?: string | null; title?: string | null } = {},
 ): Promise<StoredClaimSet> {
   const id = claimSetId(transcript.text, speakerId);
+  const source = options.source?.trim() || null;
+  const title = options.title?.trim() || null;
 
-  if (!force) {
+  if (!options.force) {
     const existing = await getStored(id);
     if (existing) return existing;
   }
@@ -81,9 +90,9 @@ export async function getOrExtractClaims(
 
   await query(
     `INSERT INTO claim_sets (
-       id, speaker_id, scorable, reason, word_count, checkable_count, claims
+       id, speaker_id, scorable, reason, word_count, checkable_count, claims, source, title
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (id) DO UPDATE SET
        speaker_id      = EXCLUDED.speaker_id,
        scorable        = EXCLUDED.scorable,
@@ -91,6 +100,8 @@ export async function getOrExtractClaims(
        word_count      = EXCLUDED.word_count,
        checkable_count = EXCLUDED.checkable_count,
        claims          = EXCLUDED.claims,
+       source          = EXCLUDED.source,
+       title           = EXCLUDED.title,
        updated_at      = now()`,
     [
       id,
@@ -100,10 +111,65 @@ export async function getOrExtractClaims(
       report.wordCount,
       report.checkableCount,
       jsonb(report.claims),
+      source,
+      title,
     ],
   );
 
-  return { ...report, id, verifications: {}, reviews: {}, cached: false };
+  return { ...report, id, verifications: {}, reviews: {}, source, title, cached: false };
+}
+
+/** The speech a claim set belongs to, for raising a named alert from the verify route. */
+export async function getClaimSetSource(
+  id: string,
+): Promise<{ source: string | null; title: string | null; speakerId: string | null } | null> {
+  const { rows } = await query<{
+    source: string | null;
+    title: string | null;
+    speaker_id: string | null;
+  }>(`SELECT source, title, speaker_id FROM claim_sets WHERE id = $1`, [id]);
+  const row = rows[0];
+  if (!row) return null;
+  return { source: row.source, title: row.title, speakerId: row.speaker_id };
+}
+
+export interface ReviewStats {
+  confirmed: number;
+  rejected: number;
+  flagged: number;
+  reviewed: number;
+  /** Share of ruled-on matches a human upheld. Null until something has been reviewed. */
+  precision: number | null;
+}
+
+/** Tally of every human ruling, so match quality is a number rather than a feeling. */
+export async function reviewStats(): Promise<ReviewStats> {
+  const { rows } = await query<{
+    confirmed: number;
+    rejected: number;
+    flagged: number;
+  }>(
+    `SELECT
+       count(*) FILTER (WHERE entry.value->>'verdict' = 'confirmed')::int AS confirmed,
+       count(*) FILTER (WHERE entry.value->>'verdict' = 'rejected')::int  AS rejected,
+       count(*) FILTER (WHERE entry.value->>'verdict' = 'flagged')::int   AS flagged
+     FROM claim_sets
+     CROSS JOIN LATERAL jsonb_each(reviews) AS entry(key, value)`,
+  );
+
+  const confirmed = rows[0]?.confirmed ?? 0;
+  const rejected = rows[0]?.rejected ?? 0;
+  const flagged = rows[0]?.flagged ?? 0;
+  const reviewed = confirmed + rejected + flagged;
+  const ruled = confirmed + rejected;
+
+  return {
+    confirmed,
+    rejected,
+    flagged,
+    reviewed,
+    precision: ruled > 0 ? confirmed / ruled : null,
+  };
 }
 
 /** Merge a batch of verification results into the stored sheet, keyed by claim id. */

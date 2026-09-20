@@ -1,11 +1,12 @@
 "use client";
 
-import { Bell, RefreshCw, TrendingUp, Trophy } from "lucide-react";
+import { Bell, Check, Pencil, RefreshCw, TrendingUp, Trophy, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 import type { Alert } from "@/lib/alerts";
+import type { ReviewStats } from "@/lib/claims-store";
 import type {
   BoardDimension,
   Leaderboard,
@@ -13,6 +14,16 @@ import type {
   LeaderboardSpeech,
   TimelinePoint,
 } from "@/lib/reports";
+
+type Board = Leaderboard & { reviews: ReviewStats };
+
+const EMPTY_REVIEWS: ReviewStats = {
+  confirmed: 0,
+  rejected: 0,
+  flagged: 0,
+  reviewed: 0,
+  precision: null,
+};
 
 const DIMENSIONS: Array<{ id: BoardDimension; label: string }> = [
   { id: "source", label: "Source" },
@@ -44,7 +55,7 @@ function tone(probability: number | null) {
 
 export function LeaderboardView() {
   const [dimension, setDimension] = useState<BoardDimension>("source");
-  const [data, setData] = useState<Leaderboard | null>(null);
+  const [data, setData] = useState<Board | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,11 +67,11 @@ export function LeaderboardView() {
         fetch("/api/alerts?limit=8", { cache: "no-store" }),
       ]);
       if (!boardRes.ok) throw new Error(`Could not load the leaderboard (${boardRes.status}).`);
-      setData((await boardRes.json()) as Leaderboard);
+      setData((await boardRes.json()) as Board);
       setAlerts(alertRes.ok ? ((await alertRes.json()) as { items: Alert[] }).items : []);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
-      setData({ dimension: dim, groups: [], timeline: [], recent: [] });
+      setData({ dimension: dim, groups: [], timeline: [], recent: [], reviews: EMPTY_REVIEWS });
     }
   }, []);
 
@@ -127,6 +138,7 @@ export function LeaderboardView() {
           <>
             <TrendChart points={data.timeline} />
             <AlertList alerts={alerts} />
+            <MatchQuality stats={data.reviews} />
 
             <ol className="flex flex-col gap-2">
               {data.groups.map((group, index) => (
@@ -140,13 +152,37 @@ export function LeaderboardView() {
               </p>
               <ul className="flex flex-col gap-1">
                 {data.recent.map((speech) => (
-                  <SpeechRow key={speech.id} speech={speech} />
+                  <SpeechRow
+                    key={speech.id}
+                    speech={speech}
+                    onSaved={() => void load(dimension)}
+                  />
                 ))}
               </ul>
             </div>
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function MatchQuality({ stats }: { stats: ReviewStats }) {
+  if (stats.reviewed === 0) return null;
+  const upheld = stats.precision === null ? "–" : `${Math.round(stats.precision * 100)}%`;
+
+  return (
+    <div className="glass mb-5 rounded-2xl border border-border/70 px-4 py-3">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
+        Match quality
+      </p>
+      <p className="text-[13px] text-muted-foreground">
+        <span className="text-[17px] font-semibold tabular-nums text-foreground">{upheld}</span>{" "}
+        of reviewed matches upheld by a human
+      </p>
+      <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
+        {stats.confirmed} confirmed · {stats.rejected} rejected · {stats.flagged} follow-up
+      </p>
     </div>
   );
 }
@@ -245,9 +281,72 @@ function GroupRow({ group, rank }: { group: LeaderboardGroup; rank: number }) {
   );
 }
 
-function SpeechRow({ speech }: { speech: LeaderboardSpeech }) {
+function SpeechRow({ speech, onSaved }: { speech: LeaderboardSpeech; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [politician, setPolitician] = useState(speech.politician ?? "");
+  const [party, setParty] = useState(speech.party ?? "");
+  const [topic, setTopic] = useState(speech.topic ?? "");
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   const score = tone(speech.aiProbability);
   const context = [speech.politician, speech.party, speech.topic].filter(Boolean).join(" · ");
+  const key = speech.videoId?.trim() || speech.title;
+
+  function startEditing() {
+    setPolitician(speech.politician ?? "");
+    setParty(speech.party ?? "");
+    setTopic(speech.topic ?? "");
+    setEditError(null);
+    setEditing(true);
+  }
+
+  async function save() {
+    setSaving(true);
+    setEditError(null);
+    try {
+      const response = await fetch("/api/reports", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, politician, party, topic }),
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? `Could not save the labels (${response.status}).`);
+      }
+      setEditing(false);
+      onSaved();
+    } catch (caught) {
+      setEditError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <li className="glass rounded-xl border border-border/70 px-3 py-3">
+        <p className="mb-2 truncate text-[12px] font-medium">{speech.title}</p>
+        <div className="flex flex-col gap-1.5">
+          <LabelInput label="Politician" value={politician} onChange={setPolitician} disabled={saving} />
+          <LabelInput label="Party" value={party} onChange={setParty} disabled={saving} />
+          <LabelInput label="Topic" value={topic} onChange={setTopic} disabled={saving} />
+        </div>
+        {editError ? <p className="mt-1.5 text-[11px] text-destructive">{editError}</p> : null}
+        <div className="mt-2 flex gap-2">
+          <Button size="sm" className="gap-1.5" onClick={() => void save()} disabled={saving}>
+            <Check className="size-3.5" />
+            {saving ? "Saving…" : "Save labels"}
+          </Button>
+          <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setEditing(false)} disabled={saving}>
+            <X className="size-3.5" />
+            Cancel
+          </Button>
+        </div>
+      </li>
+    );
+  }
+
   const label = (
     <>
       <span className="min-w-0 flex-1">
@@ -263,14 +362,14 @@ function SpeechRow({ speech }: { speech: LeaderboardSpeech }) {
     </>
   );
 
-  const className =
-    "flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-colors hover:border-border/70 hover:bg-card/50";
+  const rowClass =
+    "flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-colors hover:border-border/70 hover:bg-card/50";
 
   return (
-    <li>
+    <li className="flex items-center gap-1">
       {speech.videoId ? (
         <a
-          className={className}
+          className={rowClass}
           href={`https://www.youtube.com/watch?v=${speech.videoId}`}
           target="_blank"
           rel="noreferrer"
@@ -278,8 +377,42 @@ function SpeechRow({ speech }: { speech: LeaderboardSpeech }) {
           {label}
         </a>
       ) : (
-        <div className={className}>{label}</div>
+        <div className={rowClass}>{label}</div>
       )}
+      <button
+        type="button"
+        onClick={startEditing}
+        aria-label={`Edit labels for ${speech.title}`}
+        title="Correct the politician, party or topic"
+        className="shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Pencil className="size-3.5" />
+      </button>
     </li>
+  );
+}
+
+function LabelInput({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label className="flex items-center gap-2">
+      <span className="w-20 shrink-0 text-[11px] text-muted-foreground">{label}</span>
+      <input
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={label}
+        className="min-w-0 flex-1 rounded-lg border border-border bg-background/70 px-2 py-1 text-[12px] outline-none focus-visible:border-ring"
+      />
+    </label>
   );
 }

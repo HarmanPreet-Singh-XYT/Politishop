@@ -157,7 +157,12 @@ export function AnalyticsPanel({
         const response = await fetch("/api/claims", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transcript, speakerId: selected }),
+          body: JSON.stringify({
+            transcript,
+            speakerId: selected,
+            source: video?.channel?.trim() || video?.title?.trim() || null,
+            title: video?.title?.trim() || null,
+          }),
         });
         const data = (await response.json()) as StoredClaimSet & { error?: string };
         if (!response.ok) {

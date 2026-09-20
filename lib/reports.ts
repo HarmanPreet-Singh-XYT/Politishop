@@ -105,6 +105,17 @@ export async function saveSpeechMeta(id: string, meta: SpeechMeta): Promise<void
   );
 }
 
+/** Override the labels for a whole speech (every row sharing its key), from a human correction. */
+export async function overrideSpeechMeta(key: string, meta: SpeechMeta): Promise<number> {
+  const { rowCount } = await query(
+    `UPDATE ai_reports
+        SET politician = $2, party = $3, topic = $4
+      WHERE coalesce(video_id, title) = $1`,
+    [key, meta.politician, meta.party, meta.topic],
+  );
+  return rowCount ?? 0;
+}
+
 /** Reuse the labels already derived for this speech, so we only pay for them once. */
 export async function getSpeechMeta(
   videoId: string | null,

@@ -13,6 +13,8 @@ export async function POST(request: Request) {
     transcript?: Transcript;
     speakerId?: string | null;
     force?: boolean;
+    source?: string;
+    title?: string;
   } | null;
 
   if (!body?.transcript?.words?.length) {
@@ -20,11 +22,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const report = await getOrExtractClaims(
-      body.transcript,
-      body.speakerId ?? null,
-      body.force === true,
-    );
+    const report = await getOrExtractClaims(body.transcript, body.speakerId ?? null, {
+      force: body.force === true,
+      source: typeof body.source === "string" ? body.source : null,
+      title: typeof body.title === "string" ? body.title : null,
+    });
     return Response.json(report);
   } catch (error) {
     return Response.json(

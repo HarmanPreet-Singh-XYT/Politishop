@@ -77,6 +77,9 @@ CREATE TABLE IF NOT EXISTS claim_sets (
 CREATE INDEX IF NOT EXISTS claim_sets_updated_at_idx ON claim_sets (updated_at DESC);
 -- Added after the table shipped, so migrate it in place rather than recreating.
 ALTER TABLE claim_sets ADD COLUMN IF NOT EXISTS reviews jsonb NOT NULL DEFAULT '{}'::jsonb;
+-- Which speech a claim set belongs to, so alerts raised from it can name the speech.
+ALTER TABLE claim_sets ADD COLUMN IF NOT EXISTS source text;
+ALTER TABLE claim_sets ADD COLUMN IF NOT EXISTS title text;
 
 CREATE TABLE IF NOT EXISTS ai_reports (
   id              text PRIMARY KEY,
